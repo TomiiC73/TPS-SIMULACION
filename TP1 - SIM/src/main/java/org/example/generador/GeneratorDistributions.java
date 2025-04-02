@@ -1,9 +1,6 @@
 package org.example.generador;
 
-import org.example.distributions.Exponential;
-import org.example.distributions.Normal;
-import org.example.distributions.Poisson;
-import org.example.distributions.Uniform;
+import org.example.distributions.*;
 import org.example.visualization.Visualizador;
 
 import java.util.Scanner;
@@ -25,6 +22,16 @@ public class GeneratorDistributions {
             return;  // Terminar el programa si la cantidad es inválida
         }
 
+        // Solicitar el número de intervalos para el histograma
+        System.out.print("Ingrese el número de intervalos para el histograma: ");
+        int intervalos = scanner.nextInt();
+
+        // Validar que el número de intervalos sea positivo
+        if (intervalos <= 0) {
+            System.out.println("El número de intervalos debe ser mayor que 0.");
+            return;  // Terminar el programa si la cantidad es inválida
+        }
+
         // Elegir la distribución
         System.out.println("Seleccione la distribución a generar:");
         System.out.println("1. Uniforme");
@@ -40,21 +47,18 @@ public class GeneratorDistributions {
         // Según la opción elegida, pedir los parámetros necesarios
         switch (opcion) {
             case 1:  // Uniforme
-                System.out.print("Ingrese el valor mínimo (a): ");
-                a = scanner.nextDouble();
-                System.out.print("Ingrese el valor máximo (b): ");
-                b = scanner.nextDouble();
                 // Generar y visualizar la distribución uniforme
-                double[] uniforme = Uniform.generate(a, b, n);
-                Visualizador.visualizar(uniforme, "Uniforme");
+                double[] uniforme = Uniform.generate(n);
+                Visualizador.visualizar(uniforme, "Uniforme", intervalos);
                 break;
 
             case 2:  // Exponencial
                 System.out.print("Ingrese el parámetro lambda: ");
                 lam = scanner.nextDouble();
+
                 // Generar y visualizar la distribución exponencial
                 double[] exponencial = Exponential.generate(lam, n);
-                Visualizador.visualizar(exponencial, "Exponencial");
+                Visualizador.visualizar(exponencial, "Exponencial", intervalos);
                 for (double v : exponencial) {
                     System.out.printf("%.2f ", v);
                 }
@@ -63,9 +67,10 @@ public class GeneratorDistributions {
             case 3:  // Poisson
                 System.out.print("Ingrese el parámetro lambda: ");
                 lam = scanner.nextDouble();
+
                 // Generar y visualizar la distribución Poisson
                 double[] poisson = Poisson.generate(lam, n);
-                Visualizador.visualizar(poisson, "Poisson");
+                Visualizador.visualizar(poisson, "Poisson", intervalos);
                 for (double v : poisson) {
                     System.out.println(v);
                 }
@@ -76,9 +81,10 @@ public class GeneratorDistributions {
                 mu = scanner.nextDouble();
                 System.out.print("Ingrese el valor de la desviación estándar (sigma): ");
                 sigma = scanner.nextDouble();
+
                 // Generar y visualizar la distribución normal
                 double[] normal = Normal.generate(mu, sigma, n);
-                Visualizador.visualizar(normal, "Normal");
+                Visualizador.visualizar(normal, "Normal", intervalos);
                 break;
 
             default:

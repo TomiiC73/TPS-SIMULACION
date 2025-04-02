@@ -9,10 +9,10 @@ import javax.swing.*;
 
 public class Visualizador {
 
-    public static void visualizar(double[] datos, String nombreDistribucion) {
+    public static void visualizar(double[] datos, String nombreDistribucion, int intervalos) {
         // Crear un conjunto de datos para el histograma
         HistogramDataset dataset = new HistogramDataset();
-        dataset.addSeries(nombreDistribucion, datos, 30);
+        dataset.addSeries(nombreDistribucion, datos, intervalos); // Usar los bins proporcionados por el usuario
 
         // Crear el gráfico
         JFreeChart chart = ChartFactory.createHistogram(
