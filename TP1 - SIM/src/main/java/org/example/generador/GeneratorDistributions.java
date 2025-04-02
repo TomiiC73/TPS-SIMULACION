@@ -3,83 +3,85 @@ package org.example.generador;
 import org.example.distributions.*;
 import org.example.visualization.Visualizador;
 
+import javax.swing.*;
+import java.awt.*;
 import java.util.Scanner;
 
 public class GeneratorDistributions {
 
     public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new GeneratorDistributions().createAndShowGUI());
+    }
 
-        Scanner scanner = new Scanner(System.in);
+    private void createAndShowGUI() {
+        JFrame frame = new JFrame("Generador de Distribuciones");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(400, 300);
+        frame.setLayout(new GridLayout(0, 2));
 
-        // Solicitar la cantidad de valores a generar
-        System.out.print("Ingrese la cantidad de valores a generar (máximo 50,000): ");
-        int n = scanner.nextInt();
+        JTextField nField = new JTextField();
+        JTextField intervalosField = new JTextField();
+        String[] distribuciones = {"Uniforme", "Exponencial", "Poisson", "Normal"};
+        JComboBox<String> distribucionBox = new JComboBox<>(distribuciones);
+        JButton generarButton = new JButton("Generar");
 
-        if (n > 50000) {
-            System.out.println("La cantidad de valores no puede ser mayor que 50,000.");
-            return;
-        }
+        frame.add(new JLabel("Cantidad de valores (máx 50,000):"));
+        frame.add(nField);
+        frame.add(new JLabel("Número de intervalos:"));
+        frame.add(intervalosField);
+        frame.add(new JLabel("Seleccione la distribución:"));
+        frame.add(distribucionBox);
+        frame.add(new JLabel());
+        frame.add(generarButton);
 
-        // Solicitar número de intervalos
-        System.out.print("Ingrese el número de intervalos para el histograma: ");
-        int intervalos = scanner.nextInt();
+        generarButton.addActionListener(e -> {
+            try {
+                int n = Integer.parseInt(nField.getText());
+                if (n > 50000 || n <= 0) {
+                    JOptionPane.showMessageDialog(frame, "La muestra debe ser mayor a 0 y menor a 50000", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
 
-        if (intervalos <= 0) {
-            System.out.println("El número de intervalos debe ser mayor que 0.");
-            return;
-        }
+                int intervalos = Integer.parseInt(intervalosField.getText());
+                if (intervalos <= 0) {
+                    JOptionPane.showMessageDialog(frame, "Los intervalos deben ser mayores que 0.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
 
-        // Elegir distribución
-        System.out.println("Seleccione la distribución a generar:");
-        System.out.println("1. Uniforme");
-        System.out.println("2. Exponencial");
-        System.out.println("3. Poisson");
-        System.out.println("4. Normal");
-        System.out.print("Ingrese el número de la distribución: ");
-        int opcion = scanner.nextInt();
+                String seleccion = (String) distribucionBox.getSelectedItem();
+                double[] valores = new double[n];
 
-        switch (opcion) {
-            case 1:  // Uniforme
-                System.out.print("Ingrese el valor de A (> 0): ");
-                double a = scanner.nextDouble();
-                System.out.print("Ingrese el valor de B (> A): ");
-                double b = scanner.nextDouble();
+                switch (seleccion) {
+                    case "Uniforme":
+                        double a = Double.parseDouble(JOptionPane.showInputDialog(frame, "Ingrese el valor de A (> 0):"));
+                        double b = Double.parseDouble(JOptionPane.showInputDialog(frame, "Ingrese el valor de B (> A):"));
+                        if (a <= 0 || b <= a) throw new IllegalArgumentException("Valores de A y B inválidos.");
+                        valores = Uniform.generate(a, b, n);
+                        break;
+                    case "Exponencial":
+                    case "Poisson":
+                        double lambda = Double.parseDouble(JOptionPane.showInputDialog(frame, "Ingrese el parámetro lambda (> 0):"));
+                        if (lambda <= 0) throw new IllegalArgumentException("Lambda debe ser mayor que 0.");
+                        valores = seleccion.equals("Exponencial") ? Exponential.generate(lambda, n) : Poisson.generate(lambda, n);
+                        break;
+                    case "Normal":
+                        double mu = Double.parseDouble(JOptionPane.showInputDialog(frame, "Ingrese la media (mu):"));
+                        double sigma = Double.parseDouble(JOptionPane.showInputDialog(frame, "Ingrese la desviación estándar (sigma > 0):"));
+                        if (sigma <= 0) throw new IllegalArgumentException("Sigma debe ser mayor que 0.");
+                        valores = Normal.generate(mu, sigma, n);
+                        break;
+                }
 
-                double[] uniforme = Uniform.generate(a, b, n);
-                Visualizador.visualizar(uniforme, "Uniforme", intervalos);
-                break;
+                Visualizador.visualizar(valores, seleccion, intervalos);
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(frame, "Ingrese valores numéricos válidos.", "Error", JOptionPane.ERROR_MESSAGE);
+            } catch (IllegalArgumentException ex) {
+                JOptionPane.showMessageDialog(frame, ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(frame, "El número de la muestra debe ser mayor a 0 y menor a 50000", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
 
-            case 2:  // Exponencial
-                System.out.print("Ingrese el parámetro lambda (> 0): ");
-                double lam = scanner.nextDouble();
-
-                double[] exponencial = Exponential.generate(lam, n);
-                Visualizador.visualizar(exponencial, "Exponencial", intervalos);
-                break;
-
-            case 3:  // Poisson
-                System.out.print("Ingrese el parámetro lambda (> 0): ");
-                lam = scanner.nextDouble();
-
-                double[] poisson = Poisson.generate(lam, n);
-                Visualizador.visualizar(poisson, "Poisson", intervalos);
-                break;
-
-            case 4:  // Normal
-                System.out.print("Ingrese el valor de la media (mu): ");
-                double mu = scanner.nextDouble();
-                System.out.print("Ingrese el valor de la desviación estándar (sigma > 0): ");
-                double sigma = scanner.nextDouble();
-
-                double[] normal = Normal.generate(mu, sigma, n);
-                Visualizador.visualizar(normal, "Normal", intervalos);
-                break;
-
-            default:
-                System.out.println("Opción no válida.");
-                break;
-        }
-
-        scanner.close();
+        frame.setVisible(true);
     }
 }
