@@ -12,23 +12,25 @@ import java.io.IOException;
 public class GeneratorDistributions {
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new GeneratorDistributions().createAndShowGUI());
+        SwingUtilities.invokeLater(() -> new GeneratorDistributions().createAndShowGUI());  // Ejecuta la creacion de la GUI en el hilo de eventos
     }
 
+    // Metodo para crear y mostrar la interfaz grafica
     private void createAndShowGUI() {
-        JFrame frame = new JFrame("Generador de Distribuciones");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(400, 300);
-        frame.setLayout(new GridLayout(0, 2));
-        frame.setLocationRelativeTo(null);
+        JFrame frame = new JFrame("Generador de Distribuciones");  // Crea el marco de la ventana
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);  // Define la operacion al cerrar la ventana
+        frame.setSize(400, 300);  // Define el tamaño de la ventana
+        frame.setLayout(new GridLayout(0, 2));  // Establece el layout de la ventana
+        frame.setLocationRelativeTo(null);  // Centra la ventana en la pantalla
 
-        JTextField nField = new JTextField();
-        JTextField intervalosField = new JTextField();
-        JTextField nivelDeAceptacionField = new JTextField();
-        String[] distribuciones = {"Uniforme", "Exponencial", "Poisson", "Normal"};
-        JComboBox<String> distribucionBox = new JComboBox<>(distribuciones);
-        JButton generarButton = new JButton("Generar");
+        JTextField nField = new JTextField();  // Campo de texto para la cantidad de valores
+        JTextField intervalosField = new JTextField();  // Campo de texto para el número de intervalos
+        JTextField nivelDeAceptacionField = new JTextField();  // Campo de texto para el nivel de aceptación
+        String[] distribuciones = {"Uniforme", "Exponencial", "Poisson", "Normal"};  // Lista de distribuciones disponibles
+        JComboBox<String> distribucionBox = new JComboBox<>(distribuciones);  // ComboBox para seleccionar la distribución
+        JButton generarButton = new JButton("Generar");  // Botón para generar los valores
 
+        // Agrega los componentes a la ventana
         frame.add(new JLabel("Cantidad de valores (máx 50,000):"));
         frame.add(nField);
         frame.add(new JLabel("Número de intervalos:"));
@@ -40,8 +42,10 @@ public class GeneratorDistributions {
         frame.add(new JLabel());
         frame.add(generarButton);
 
+        // Define la accion al hacer clic en el boton "Generar"
         generarButton.addActionListener(e -> {
             try {
+                // Verifica que los valores de entrada sean correctos
                 int n = Integer.parseInt(nField.getText());
                 if (n > 50000 || n <= 0) {
                     JOptionPane.showMessageDialog(frame, "La muestra debe ser mayor a 0 y menor a 50000", "Error", JOptionPane.ERROR_MESSAGE);
@@ -60,6 +64,7 @@ public class GeneratorDistributions {
                     return;
                 }
 
+                // Obtiene la distribucion seleccionada
                 String seleccion = (String) distribucionBox.getSelectedItem();
                 double[] valores = new double[n];
                 double chi = 0;
@@ -67,11 +72,12 @@ public class GeneratorDistributions {
                 boolean pasaTest = false;
                 int gradosDeLibertad = 0;
 
+                // Genera los valores y realiza la prueba de Chi-Cuadrado según la distribucion seleccionada
                 switch (seleccion) {
                     case "Uniforme":
                         double a = Double.parseDouble(JOptionPane.showInputDialog(frame, "Ingrese el valor de A (> 0):"));
                         double b = Double.parseDouble(JOptionPane.showInputDialog(frame, "Ingrese el valor de B (> A):"));
-                        if (a <= 0 || b <= a) throw new IllegalArgumentException("Valores de A y B inválidos.");
+                        if (a <= 0 || b <= a) throw new IllegalArgumentException("Valores de A y B invalidos.");
                         valores = Uniform.generate(a, b, n);
                         chi = TestChiCuadrado.calcular(valores, intervalos, TestChiCuadrado.Distribucion.UNIFORME);
                         gradosDeLibertad = intervalos - 1;
@@ -103,24 +109,27 @@ public class GeneratorDistributions {
                         break;
                 }
 
+                // Muestra el grafico de los valores generados
                 Visualizador.visualizar(valores, seleccion, intervalos);
 
-                // Valor crítico aproximado para alfa = 0.05 y k = intervalos - 1
+                // Calcula el valor crítico y compara el estadistico Chi-Cuadrado con el
                 valorCritico = TestChiCuadrado.valorCritico(gradosDeLibertad, nivelDeAceptacion);
                 pasaTest = chi < valorCritico;
 
+                // Muestra el resultado del test Chi-Cuadrado
                 JOptionPane.showMessageDialog(
                         frame,
                         String.format("Chi-Cuadrado: %.4f\nValor Crítico (α=%.4f): %.4f\nResultado: %s",
-                                chi, (1.0 - nivelDeAceptacion),valorCritico, pasaTest ? "Se acepta la hipótesis (pasa el test)" : "Se rechaza la hipótesis"),
+                                chi, (1.0 - nivelDeAceptacion), valorCritico, pasaTest ? "Se acepta la hipotesis (pasa el test)" : "Se rechaza la hipotesis"),
                         "Resultado del Test Chi-Cuadrado",
                         JOptionPane.INFORMATION_MESSAGE
                 );
 
+                // Exporta los numeros generados a un archivo de texto
                 this.exportarNumerosGenerados(valores);
 
             } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(frame, "Ingrese valores numéricos válidos.", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(frame, "Ingrese valores numericos validos.", "Error", JOptionPane.ERROR_MESSAGE);
             } catch (IllegalArgumentException ex) {
                 JOptionPane.showMessageDialog(frame, ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             } catch (Exception ex) {
@@ -128,19 +137,19 @@ public class GeneratorDistributions {
             }
         });
 
-
+        // Hace visible la ventana
         frame.setVisible(true);
     }
 
-    public void exportarNumerosGenerados(double[] valores){
+    // Metodo para exportar los numeros generados a un archivo de texto
+    public void exportarNumerosGenerados(double[] valores) {
         try (FileWriter writer = new FileWriter("nrosAleatorios.txt")) {
             for (int i = 0; i < valores.length; i++) {
-                writer.write(valores[i] + "\n");       // Escribe el número seguido de un salto de línea
+                writer.write(valores[i] + "\n");  // Escribe cada numero generado en el archivo
             }
-            System.out.println("Números exportados correctamente.");
+            System.out.println("Numeros exportados correctamente.");
         } catch (IOException e) {
-            e.printStackTrace();
+            e.printStackTrace();  // Maneja la excepcion de IO
         }
     }
 }
-
