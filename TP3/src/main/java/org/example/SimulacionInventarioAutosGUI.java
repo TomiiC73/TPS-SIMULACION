@@ -290,7 +290,13 @@ public class SimulacionInventarioAutosGUI {
         scrollPane.setBorder(BorderFactory.createLineBorder(COLOR_BORDE));
 
         // Llenar la tabla con los datos
-        for (ResultadoMes resultado : resultados) {
+        List<ResultadoMes> resultadosB = new ArrayList<>();
+        for(int i = inicio-1; i < fin; i++){
+            resultadosB.add(resultados.get(i));
+        }
+        resultadosB.add(resultados.getLast());
+
+        for (ResultadoMes resultado : resultadosB) {
             Object[] rowData = {
                     resultado.mes,
                     resultado.inventario,

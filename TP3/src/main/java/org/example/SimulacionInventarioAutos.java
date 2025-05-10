@@ -31,7 +31,7 @@ public class SimulacionInventarioAutos {
 
         int mesesSimular = 36;
         int filaInicioMostrar = 1;
-        int filaFinMostrar = 36;
+        int filaFinMostrar = 33;
         int stockInicial = 25;
 
         SimulacionInventarioAutos simulacion = new SimulacionInventarioAutos();
