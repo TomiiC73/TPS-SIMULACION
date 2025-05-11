@@ -24,11 +24,6 @@ public class SimulacionInventarioAutos {
 
     public static void main(String[] args) {
 
-        //int mesesSimular = Integer.parseInt(args[0]);
-        //int filaInicioMostrar = Integer.parseInt(args[1]);
-        //int filaFinMostrar = Integer.parseInt(args[2]);
-        //int stockInicial = Integer.parseInt(args[3]);
-
         int mesesSimular = 36;
         int filaInicioMostrar = 1;
         int filaFinMostrar = 33;
