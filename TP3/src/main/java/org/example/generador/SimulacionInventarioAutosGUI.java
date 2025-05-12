@@ -1,4 +1,4 @@
-package org.example;
+package org.example.generador;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -9,6 +9,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import org.example.Distribuciones.*;
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.ChartPanel;
+import org.jfree.chart.JFreeChart;
+import org.jfree.chart.plot.PiePlot;
+import org.jfree.data.general.DefaultPieDataset;
 
 public class SimulacionInventarioAutosGUI {
 
@@ -405,16 +410,14 @@ public class SimulacionInventarioAutosGUI {
         resultadosFrame.setLayout(new BorderLayout());
         resultadosFrame.getContentPane().setBackground(COLOR_FONDO);
 
-        // Panel de título
+        // Panel de título (sin cambios)
         JPanel titlePanel = new JPanel();
         titlePanel.setBackground(COLOR_ENCABEZADO);
         titlePanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
-
         JLabel titleLabel = new JLabel("RESULTADOS DE LA SIMULACIÓN");
         titleLabel.setFont(new Font("Lato", Font.BOLD, 18));
         titleLabel.setForeground(Color.WHITE);
         titlePanel.add(titleLabel);
-
         resultadosFrame.add(titlePanel, BorderLayout.NORTH);
 
         // Crear tabla con los resultados
@@ -531,49 +534,93 @@ public class SimulacionInventarioAutosGUI {
     }
 
     private void generarMetricas(List<ResultadoMes> resultados) {
-        // Configurar el tamaño de fuente más grande (16 puntos)
-        Font fuenteGrande = new Font("Consolas", Font.PLAIN, 16);
-        metricsArea.setFont(fuenteGrande);
+        // --- Cálculos (igual que antes) ---
+        double costoTotal = resultados.get(resultados.size() - 1).costoTotal;
+        double costoAlmacenamiento = resultados.stream().mapToDouble(r -> r.costoAlmacenamiento).sum();
+        double costoVentasPerdidas = resultados.stream().mapToDouble(r -> r.costoVentasPerdidas).sum();
+        double costoPedidos = resultados.stream().mapToDouble(r -> r.costoPedido).sum();
 
-        double costoPromedioMensual = resultados.stream()
-                .mapToDouble(r -> r.costoMes)
-                .average()
-                .orElse(0);
+        int totalVentas = resultados.stream().mapToInt(r -> r.ventasReales).sum();
+        int totalVentasPerdidas = resultados.stream().mapToInt(r -> r.ventasPerdidas).sum();
+        long mesesStockCritico = resultados.stream().filter(r -> r.inventarioFinal < puntoReorden).count();
 
-        int totalVentasPerdidas = resultados.stream()
-                .mapToInt(r -> r.ventasPerdidas)
-                .sum();
+        // Métricas nuevas
+        double porcentajeAlmacenamiento = (costoAlmacenamiento / costoTotal) * 100;
+        double porcentajeVentasPerdidas = (costoVentasPerdidas / costoTotal) * 100;
+        double porcentajePedidos = (costoPedidos / costoTotal) * 100;
+        double eficienciaInventario = (double) totalVentas / (totalVentas + totalVentasPerdidas) * 100;
 
-        int totalPedidos = (int)resultados.stream()
-                .filter(r -> r.costoPedido > 0)
-                .count();
+        // --- Texto de Métricas (sin cambios) ---
+        StringBuilder texto = new StringBuilder();
+        texto.append("╔════════════════════════════════════════════╗\n");
+        texto.append("║          MÉTRICAS CONSOLIDADAS             ║\n");
+        texto.append("╠══════════════════════════╦═════════════════╣\n");
+        texto.append(String.format("║ %-24s ║ %14.1f%% ║%n", "% Almacenamiento", porcentajeAlmacenamiento));
+        texto.append(String.format("║ %-24s ║ %14.1f%% ║%n", "% Ventas perdidas", porcentajeVentasPerdidas));
+        texto.append(String.format("║ %-24s ║ %14.1f%% ║%n", "% Pedidos", porcentajePedidos));
+        texto.append("╠══════════════════════════╬═════════════════╣\n");
+        texto.append(String.format("║ %-24s ║ %,15d ║%n", "Meses stock crítico", mesesStockCritico));
+        texto.append(String.format("║ %-24s ║ %14.1f%% ║%n", "Eficiencia inventario", eficienciaInventario));
+        texto.append("╚══════════════════════════╩═════════════════╝");
 
-        double maxCostoMes = resultados.stream()
-                .mapToDouble(r -> r.costoMes)
-                .max()
-                .orElse(0);
+        // --- Mostrar texto en el panel principal ---
+        JTextArea areaTexto = new JTextArea(texto.toString());
+        areaTexto.setEditable(false);
+        areaTexto.setFont(new Font("Consolas", Font.PLAIN, 14));
+        areaTexto.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        double minCostoMes = resultados.stream()
-                .mapToDouble(r -> r.costoMes)
-                .min()
-                .orElse(0);
+        metricsArea.removeAll();
+        metricsArea.setLayout(new BorderLayout());
+        metricsArea.add(new JScrollPane(areaTexto), BorderLayout.CENTER);
 
-        StringBuilder metricsText = new StringBuilder();
-        metricsText.append("╔════════════════════════════════════════════╗\n");
-        metricsText.append("║          MÉTRICAS DE SIMULACIÓN            ║\n");
-        metricsText.append("╠══════════════════════════╦═════════════════╣\n");
-        metricsText.append(String.format("║ %-24s ║ $%,14.2f ║%n", "Costo total acumulado", resultados.get(resultados.size() - 1).costoTotal));
-        metricsText.append(String.format("║ %-24s ║ $%,14.2f ║%n", "Costo promedio mensual", costoPromedioMensual));
-        metricsText.append(String.format("║ %-24s ║ $%,14.2f ║%n", "Costo máximo mensual", maxCostoMes));
-        metricsText.append(String.format("║ %-24s ║ $%,14.2f ║%n", "Costo mínimo mensual", minCostoMes));
-        metricsText.append("╠══════════════════════════╬═════════════════╣\n");
-        metricsText.append(String.format("║ %-24s ║ %,15d ║%n", "Ventas perdidas totales", totalVentasPerdidas));
-        metricsText.append(String.format("║ %-24s ║ %,15d ║%n", "Total de pedidos", totalPedidos));
-        metricsText.append("╚══════════════════════════╩═════════════════╝\n");
+        // --- Botón para abrir el gráfico en una nueva ventana ---
+        JButton btnGrafico = new JButton("Ver Gráfico de Costos");
+        btnGrafico.setFont(new Font("Arial", Font.BOLD, 14));
+        btnGrafico.setBackground(new Color(74, 111, 165));
+        btnGrafico.setForeground(Color.WHITE);
+        btnGrafico.addActionListener(e -> mostrarGraficoCostos(porcentajeAlmacenamiento, porcentajeVentasPerdidas, porcentajePedidos));
 
-        metricsArea.setText(metricsText.toString());
+        JPanel panelBoton = new JPanel();
+        panelBoton.add(btnGrafico);
+        metricsArea.add(panelBoton, BorderLayout.SOUTH);
+
+        metricsArea.revalidate();
+        metricsArea.repaint();
     }
+    private void mostrarGraficoCostos(double almacenamiento, double ventasPerdidas, double pedidos) {
+        // --- Crear el gráfico ---
+        DefaultPieDataset dataset = new DefaultPieDataset();
+        dataset.setValue("Almacenamiento", almacenamiento);
+        dataset.setValue("Ventas Perdidas", ventasPerdidas);
+        dataset.setValue("Pedidos", pedidos);
 
+        JFreeChart chart = ChartFactory.createPieChart(
+                "Distribución de Costos (Detalle)",
+                dataset,
+                true,
+                true,
+                false
+        );
+
+        // --- Personalizar colores ---
+        PiePlot plot = (PiePlot) chart.getPlot();
+        plot.setSectionPaint("Almacenamiento", new Color(74, 111, 165)); // Azul
+        plot.setSectionPaint("Ventas Perdidas", new Color(220, 53, 69)); // Rojo
+        plot.setSectionPaint("Pedidos", new Color(40, 167, 69)); // Verde
+
+        // --- Ventana emergente ---
+        JFrame ventanaGrafico = new JFrame("Gráfico de Distribución de Costos");
+        ventanaGrafico.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        ventanaGrafico.setSize(600, 400);
+        ventanaGrafico.setLocationRelativeTo(frame);
+
+        ChartPanel chartPanel = new ChartPanel(chart);
+        chartPanel.setPreferredSize(new Dimension(550, 350));
+        ventanaGrafico.add(chartPanel);
+
+        ventanaGrafico.setVisible(true);
+    }
+    
     private static class CenterRenderer extends DefaultTableCellRenderer {
         public CenterRenderer() {
             setHorizontalAlignment(JLabel.CENTER);
