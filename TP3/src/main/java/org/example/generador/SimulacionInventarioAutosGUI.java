@@ -5,14 +5,21 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import java.awt.*;
+import java.io.FileOutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+
+import org.apache.poi.sl.usermodel.Sheet;
 import org.example.Distribuciones.*;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
+import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.plot.PiePlot;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DefaultPieDataset;
 
 public class SimulacionInventarioAutosGUI {
@@ -126,7 +133,7 @@ public class SimulacionInventarioAutosGUI {
         JLabel lblVentas = new JLabel("Valores de ventas (separados por comas) $:");
         lblVentas.setFont(fuenteLabels);
         lblVentas.setForeground(Color.BLACK);
-        JTextField txtVentas = new JTextField("6,7,8,9,10,11");
+        JTextField txtVentas = new JTextField("6,7,8,9,10,11,12");
         txtVentas.setFont(fuenteTextFields);
         panel.add(lblVentas);
         panel.add(txtVentas);
@@ -134,7 +141,7 @@ public class SimulacionInventarioAutosGUI {
         JLabel lblFrecuencias = new JLabel("Frecuencias de ventas (separadas por comas):");
         lblFrecuencias.setFont(fuenteLabels);
         lblFrecuencias.setForeground(Color.BLACK);
-        JTextField txtFrecuencias = new JTextField("3,4,6,12,9,1");
+        JTextField txtFrecuencias = new JTextField("3,4,6,12,9,1,1");
         txtFrecuencias.setFont(fuenteTextFields);
         panel.add(lblFrecuencias);
         panel.add(txtFrecuencias);
@@ -304,24 +311,29 @@ public class SimulacionInventarioAutosGUI {
         List<ResultadoMes> resultados = new ArrayList<>();
         int inventario = stockInicial;
         int pedidoPendiente = 0;
-        int mesesRestantesEntrega = 0;
+        int mesesRestantesEntrega = 0; // Inicialmente no hay pedidos en camino
         double costoTotal = 0;
 
         for (int mes = 1; mes <= mesesSimular; mes++) {
             int inventarioInicial = inventario;
 
-            if (mesesRestantesEntrega == 0 && pedidoPendiente > 0) {
-                inventario += pedidoPendiente;
-                pedidoPendiente = 0;
+            // 1. Decrementar el contador al INICIO del mes (antes de procesar el pedido)
+            if (mesesRestantesEntrega > 0) {
+                mesesRestantesEntrega--;
             }
 
-            // Generar y guardar random para ventas
+            // 2. Verificar si el pedido llegó EN ESTE MES (después de decrementar)
+            if (mesesRestantesEntrega == 0 && pedidoPendiente > 0) {
+                inventario += pedidoPendiente; // Sumar al inventario
+                inventarioInicial = inventario;
+                pedidoPendiente = 0; // Reiniciar
+            }
+
+            // Resto de la lógica del mes (ventas, costos, etc.)
             double randomVentas = random.nextDouble();
             int ventas = generarVentas(randomVentas);
-
             int ventasReales = Math.min(ventas, inventario);
             int ventasPerdidas = ventas - ventasReales;
-
             inventario -= ventasReales;
 
             double costoAlmacen = inventario * this.costoAlmacenamiento;
@@ -329,20 +341,17 @@ public class SimulacionInventarioAutosGUI {
             double costoPed = 0;
             double randomEntrega = 0;
 
+            // Hacer nuevo pedido si es necesario
             boolean hacerPedido = (inventario <= this.puntoReorden) && (pedidoPendiente == 0);
-            // Reemplazar la generación del plazo de entrega:
             if (hacerPedido) {
                 costoPed = this.costoPedido;
                 pedidoPendiente = this.cantidadPedido;
                 randomEntrega = random.nextDouble();
                 mesesRestantesEntrega = GeneradorDistribuciones.generarTiempoEntrega(
                         distribucionEntrega,
+                        randomEntrega,
                         parametrosDistribucion
                 );
-            }
-
-            if (mesesRestantesEntrega > 0) {
-                mesesRestantesEntrega--;
             }
 
             double costoMes = costoAlmacen + costoVentasPerd + costoPed;
@@ -371,36 +380,17 @@ public class SimulacionInventarioAutosGUI {
     }
 
     private int generarVentas(double randomValue) {
-        double prob = randomValue;
-        double acumulado = 0;
-        int totalFrecuencia = 0;
-
-        for (int f : frecuenciaVentas) {
-            totalFrecuencia += f;
-        }
+        double acumulado = 0.0;
+        double totalFrecuencia = Arrays.stream(frecuenciaVentas).sum();
 
         for (int i = 0; i < ventasCoches.length; i++) {
-            acumulado += (double)frecuenciaVentas[i] / totalFrecuencia;
-            if (prob <= acumulado) {
+            acumulado += frecuenciaVentas[i] / totalFrecuencia;
+            if (randomValue <= acumulado) {
                 return ventasCoches[i];
             }
         }
 
         return ventasCoches[ventasCoches.length - 1];
-    }
-
-    private int generarPlazoEntrega(double randomValue) {
-        double prob = randomValue;
-        double acumulado = 0;
-
-        for (int i = 0; i < probabilidadEntrega.length; i++) {
-            acumulado += probabilidadEntrega[i];
-            if (prob <= acumulado) {
-                return i + 1;
-            }
-        }
-
-        return probabilidadEntrega.length;
     }
 
     private void mostrarResultadosGUI(List<ResultadoMes> resultados, int inicio, int fin) {
@@ -533,94 +523,176 @@ public class SimulacionInventarioAutosGUI {
         resultadosFrame.setVisible(true);
     }
 
+//    private void generarMetricas(List<ResultadoMes> resultados) {
+//        // Panel principal que contendrá todo
+//        JPanel panelPrincipal = new JPanel(new BorderLayout());
+//        panelPrincipal.setBackground(COLOR_METRICAS_FONDO);
+//
+//        // 1. Panel para las métricas numéricas (parte superior)
+//        JPanel panelMetricas = new JPanel();
+//        panelMetricas.setLayout(new BoxLayout(panelMetricas, BoxLayout.Y_AXIS));
+//        panelMetricas.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+//
+//        // Cálculos de métricas
+//        double costoTotal = resultados.get(resultados.size()-1).costoTotal;
+//        double costoPromedio = costoTotal / resultados.size();
+//        int ventasTotales = resultados.stream().mapToInt(r -> r.ventasReales).sum();
+//        int ventasPerdidasTotales = resultados.stream().mapToInt(r -> r.ventasPerdidas).sum();
+//
+//        // Crear texto formateado
+//        JTextArea textoMetricas = new JTextArea();
+//        textoMetricas.setEditable(false);
+//        textoMetricas.setFont(new Font("Consolas", Font.PLAIN, 14));
+//        textoMetricas.setText(String.format(
+//                "╔════════════════════════════════════════════╗\n" +
+//                        "║          RESUMEN DE LA SIMULACIÓN          ║\n" +
+//                        "╠══════════════════════════╦═════════════════╣\n" +
+//                        "║ Costo Total              ║ $%,14.2f ║\n" +
+//                        "║ Costo Promedio Mensual   ║ $%,14.2f ║\n" +
+//                        "╠══════════════════════════╬═════════════════╣\n" +
+//                        "║ Ventas Totales           ║ %,15d ║\n" +
+//                        "║ Ventas Perdidas          ║ %,15d ║\n" +
+//                        "╚══════════════════════════╩═════════════════╝",
+//                costoTotal, costoPromedio, ventasTotales, ventasPerdidasTotales
+//        ));
+//
+//        panelMetricas.add(new JScrollPane(textoMetricas));
+//        panelPrincipal.add(panelMetricas, BorderLayout.NORTH);
+//
+//        // 2. Gráfico de costos mensuales (parte central)
+//        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+//
+//        // Agregar datos para cada mes
+//        for (ResultadoMes mes : resultados) {
+//            String mesStr = "Mes " + mes.mes;
+//            dataset.addValue(mes.costoAlmacenamiento, "Almacenamiento", mesStr);
+//            dataset.addValue(mes.costoVentasPerdidas, "Ventas Perdidas", mesStr);
+//            dataset.addValue(mes.costoPedido, "Pedidos", mesStr);
+//        }
+//
+//        // Crear el gráfico de barras
+//        JFreeChart chart = ChartFactory.createBarChart(
+//                "Costos Mensuales por Concepto",  // Título
+//                "Mes",                            // Eje X
+//                "Costo ($)",                      // Eje Y
+//                dataset,                          // Datos
+//                PlotOrientation.VERTICAL,         // Orientación
+//                true,                            // Incluir leyenda
+//                true,                            // Tooltips
+//                false                            // URLs
+//        );
+//
+//        // Personalizar colores
+//        CategoryPlot plot = chart.getCategoryPlot();
+//        plot.getRenderer().setSeriesPaint(0, new Color(74, 111, 165)); // Azul
+//        plot.getRenderer().setSeriesPaint(1, new Color(220, 53, 69));  // Rojo
+//        plot.getRenderer().setSeriesPaint(2, new Color(40, 167, 69));  // Verde
+//
+//        // Configurar el panel del gráfico
+//        ChartPanel chartPanel = new ChartPanel(chart);
+//        chartPanel.setPreferredSize(new Dimension(700, 400));
+//        chartPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+//
+//        panelPrincipal.add(chartPanel, BorderLayout.CENTER);
+//
+//        // 3. Actualizar el área de métricas
+//        metricsArea.removeAll();
+//        metricsArea.setLayout(new BorderLayout());
+//        metricsArea.add(panelPrincipal, BorderLayout.CENTER);
+//        metricsArea.revalidate();
+//        metricsArea.repaint();
+//
+//        // Botón para mostrar gráfico en ventana emergente
+//        JButton btnGrafico = new JButton("Ver Gráfico de Costos Completo");
+//        btnGrafico.setBackground(COLOR_BOTON);
+//        btnGrafico.setForeground(COLOR_TEXTO_BOTON);
+//        btnGrafico.addActionListener(e -> mostrarGraficoEnVentana(resultados));
+//
+//        JPanel panelBoton = new JPanel();
+//        panelBoton.add(btnGrafico);
+//        panelPrincipal.add(panelBoton, BorderLayout.SOUTH); // Agrega el botón debajo del gráfico pequeño
+//    }
+
     private void generarMetricas(List<ResultadoMes> resultados) {
-        // --- Cálculos (igual que antes) ---
-        double costoTotal = resultados.get(resultados.size() - 1).costoTotal;
-        double costoAlmacenamiento = resultados.stream().mapToDouble(r -> r.costoAlmacenamiento).sum();
-        double costoVentasPerdidas = resultados.stream().mapToDouble(r -> r.costoVentasPerdidas).sum();
-        double costoPedidos = resultados.stream().mapToDouble(r -> r.costoPedido).sum();
+        // 1. Crear panel principal con BorderLayout
+        JPanel panelPrincipal = new JPanel(new BorderLayout());
+        panelPrincipal.setBackground(COLOR_METRICAS_FONDO);
 
-        int totalVentas = resultados.stream().mapToInt(r -> r.ventasReales).sum();
-        int totalVentasPerdidas = resultados.stream().mapToInt(r -> r.ventasPerdidas).sum();
-        long mesesStockCritico = resultados.stream().filter(r -> r.inventarioFinal < puntoReorden).count();
+        // 2. Panel para métricas numéricas (parte superior)
+        JTextArea textoMetricas = new JTextArea(generarTextoMetricas(resultados));
+        textoMetricas.setEditable(false);
+        textoMetricas.setFont(new Font("Consolas", Font.PLAIN, 14));
+        textoMetricas.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Métricas nuevas
-        double porcentajeAlmacenamiento = (costoAlmacenamiento / costoTotal) * 100;
-        double porcentajeVentasPerdidas = (costoVentasPerdidas / costoTotal) * 100;
-        double porcentajePedidos = (costoPedidos / costoTotal) * 100;
-        double eficienciaInventario = (double) totalVentas / (totalVentas + totalVentasPerdidas) * 100;
-
-        // --- Texto de Métricas (sin cambios) ---
-        StringBuilder texto = new StringBuilder();
-        texto.append("╔════════════════════════════════════════════╗\n");
-        texto.append("║          MÉTRICAS CONSOLIDADAS             ║\n");
-        texto.append("╠══════════════════════════╦═════════════════╣\n");
-        texto.append(String.format("║ %-24s ║ %14.1f%% ║%n", "% Almacenamiento", porcentajeAlmacenamiento));
-        texto.append(String.format("║ %-24s ║ %14.1f%% ║%n", "% Ventas perdidas", porcentajeVentasPerdidas));
-        texto.append(String.format("║ %-24s ║ %14.1f%% ║%n", "% Pedidos", porcentajePedidos));
-        texto.append("╠══════════════════════════╬═════════════════╣\n");
-        texto.append(String.format("║ %-24s ║ %,15d ║%n", "Meses stock crítico", mesesStockCritico));
-        texto.append(String.format("║ %-24s ║ %14.1f%% ║%n", "Eficiencia inventario", eficienciaInventario));
-        texto.append("╚══════════════════════════╩═════════════════╝");
-
-        // --- Mostrar texto en el panel principal ---
-        JTextArea areaTexto = new JTextArea(texto.toString());
-        areaTexto.setEditable(false);
-        areaTexto.setFont(new Font("Consolas", Font.PLAIN, 14));
-        areaTexto.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-        metricsArea.removeAll();
-        metricsArea.setLayout(new BorderLayout());
-        metricsArea.add(new JScrollPane(areaTexto), BorderLayout.CENTER);
-
-        // --- Botón para abrir el gráfico en una nueva ventana ---
-        JButton btnGrafico = new JButton("Ver Gráfico de Costos");
-        btnGrafico.setFont(new Font("Arial", Font.BOLD, 14));
-        btnGrafico.setBackground(new Color(74, 111, 165));
-        btnGrafico.setForeground(Color.WHITE);
-        btnGrafico.addActionListener(e -> mostrarGraficoCostos(porcentajeAlmacenamiento, porcentajeVentasPerdidas, porcentajePedidos));
+        // 3. Panel para el botón (parte inferior)
+        JButton btnGrafico = new JButton("Ver Gráfico Completo de Costos");
+        btnGrafico.setBackground(COLOR_BOTON);
+        btnGrafico.setForeground(COLOR_TEXTO_BOTON);
+        btnGrafico.addActionListener(e -> mostrarGraficoEnVentana(resultados));
 
         JPanel panelBoton = new JPanel();
+        panelBoton.setBackground(COLOR_METRICAS_FONDO);
         panelBoton.add(btnGrafico);
-        metricsArea.add(panelBoton, BorderLayout.SOUTH);
 
+        // 4. Organizar componentes
+        panelPrincipal.add(new JScrollPane(textoMetricas), BorderLayout.CENTER);
+        panelPrincipal.add(panelBoton, BorderLayout.SOUTH);
+
+        // 5. Actualizar el área de métricas
+        metricsArea.removeAll();
+        metricsArea.setLayout(new BorderLayout());
+        metricsArea.add(panelPrincipal, BorderLayout.CENTER);
         metricsArea.revalidate();
         metricsArea.repaint();
     }
-    private void mostrarGraficoCostos(double almacenamiento, double ventasPerdidas, double pedidos) {
-        // --- Crear el gráfico ---
-        DefaultPieDataset dataset = new DefaultPieDataset();
-        dataset.setValue("Almacenamiento", almacenamiento);
-        dataset.setValue("Ventas Perdidas", ventasPerdidas);
-        dataset.setValue("Pedidos", pedidos);
 
-        JFreeChart chart = ChartFactory.createPieChart(
-                "Distribución de Costos (Detalle)",
-                dataset,
-                true,
-                true,
-                false
+    // Metodo auxiliar para generar el texto de métricas
+    private String generarTextoMetricas(List<ResultadoMes> resultados) {
+        double costoTotal = resultados.get(resultados.size()-1).costoTotal;
+        double costoPromedio = costoTotal / resultados.size();
+        int ventasTotales = resultados.stream().mapToInt(r -> r.ventasReales).sum();
+        int ventasPerdidasTotales = resultados.stream().mapToInt(r -> r.ventasPerdidas).sum();
+
+        return String.format(
+                "╔════════════════════════════════════════════╗\n" +
+                        "║          RESUMEN DE LA SIMULACIÓN          ║\n" +
+                        "╠══════════════════════════╦═════════════════╣\n" +
+                        "║ Costo Total              ║ $%,14.2f ║\n" +
+                        "║ Costo Promedio Mensual   ║ $%,14.2f ║\n" +
+                        "╠══════════════════════════╬═════════════════╣\n" +
+                        "║ Ventas Totales           ║ %,15d ║\n" +
+                        "║ Ventas Perdidas          ║ %,15d ║\n" +
+                        "╚══════════════════════════╩═════════════════╝",
+                costoTotal, costoPromedio, ventasTotales, ventasPerdidasTotales
         );
-
-        // --- Personalizar colores ---
-        PiePlot plot = (PiePlot) chart.getPlot();
-        plot.setSectionPaint("Almacenamiento", new Color(74, 111, 165)); // Azul
-        plot.setSectionPaint("Ventas Perdidas", new Color(220, 53, 69)); // Rojo
-        plot.setSectionPaint("Pedidos", new Color(40, 167, 69)); // Verde
-
-        // --- Ventana emergente ---
-        JFrame ventanaGrafico = new JFrame("Gráfico de Distribución de Costos");
-        ventanaGrafico.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        ventanaGrafico.setSize(600, 400);
-        ventanaGrafico.setLocationRelativeTo(frame);
-
-        ChartPanel chartPanel = new ChartPanel(chart);
-        chartPanel.setPreferredSize(new Dimension(550, 350));
-        ventanaGrafico.add(chartPanel);
-
-        ventanaGrafico.setVisible(true);
     }
     
+    private void mostrarGraficoEnVentana(List<ResultadoMes> resultados) {
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+        for (ResultadoMes mes : resultados) {
+            dataset.addValue(mes.costoAlmacenamiento, "Almacenamiento", "Mes " + mes.mes);
+            dataset.addValue(mes.ventasReales, "Ventas", "Mes " + mes.mes);
+            dataset.addValue(mes.costoVentasPerdidas, "Ventas Perdidas", "Mes " + mes.mes);
+            dataset.addValue(mes.costoPedido, "Pedidos", "Mes " + mes.mes);
+        }
+
+
+        
+        JFreeChart chart = ChartFactory.createLineChart(
+                "Costos Mensuales", "Mes", "Costo ($)", dataset,
+                PlotOrientation.VERTICAL, true, true, false
+        );
+
+        JFrame frameGrafico = new JFrame("Análisis de Costos");
+        frameGrafico.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        frameGrafico.add(new ChartPanel(chart) {{
+            setPreferredSize(new Dimension(800, 600));
+        }});
+        frameGrafico.pack();
+        frameGrafico.setLocationRelativeTo(null);
+        frameGrafico.setVisible(true);
+    }
+
     private static class CenterRenderer extends DefaultTableCellRenderer {
         public CenterRenderer() {
             setHorizontalAlignment(JLabel.CENTER);
@@ -687,17 +759,21 @@ public class SimulacionInventarioAutosGUI {
     }
 
     public class GeneradorDistribuciones {
-        public static int generarTiempoEntrega(String tipoDistribucion, double[] parametros) {
+        public static int generarTiempoEntrega(String tipoDistribucion,double RND, double[] parametros) {
             switch(tipoDistribucion.toUpperCase()) {
                 case "UNIFORME":
                     if(parametros.length != 2) throw new IllegalArgumentException("Uniforme necesita 2 parámetros [A, B]");
-                    double[] uniforme = Uniform.generate(parametros[0], parametros[1], 1);
-                    return (int) Math.ceil(uniforme[0]); // Redondear hacia arriba
+                    double[] uniforme = Uniform.generate(parametros[0], parametros[1], 1, RND);
+                    int comodin = (int) Math.round(uniforme[0]);
+                    System.out.println(uniforme[0]);
+                    System.out.println("valor uniforme:" + comodin);
+                    System.out.println();
+                    return comodin; // Redondear hacia arriba
 
                 case "NORMAL":
                     if(parametros.length != 2) throw new IllegalArgumentException("Normal necesita 2 parámetros [media, desviación]");
                     double[] normal = Normal.generate(parametros[0], parametros[1], 1);
-                    return (int) Math.max(1, Math.min(4, Math.ceil(normal[0]))); // Asegurar entre 1 y 4
+                    return (int) Math.max(1, Math.min(4, Math.ceil(normal[0])));
 
                 case "POISSON":
                     if(parametros.length != 1) throw new IllegalArgumentException("Poisson necesita 1 parámetro [lambda]");

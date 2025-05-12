@@ -5,7 +5,7 @@ import java.util.Random;
 public class Uniform {
 
     // Metodo para generar n valores aleatorios con distribucion uniforme
-    public static double[] generate(double A, double B, int n) {
+    public static double[] generate(double A, double B, int n, double RND) {
 
         // Si el numero de valores a generar es mayor a 50000, lanza una excepcion
         if (n > 50000) {
@@ -22,13 +22,13 @@ public class Uniform {
             throw new IllegalArgumentException("El valor de B debe ser mayor que A.");
         }
 
-        Random random = new Random();  // Crea un objeto Random para generar numeros aleatorios
+
         double[] valores = new double[n];  // Crea un arreglo para almacenar los valores generados
 
         // Bucle para generar n valores con distribucion uniforme
         for (int i = 0; i < n; i++) {
-            double u = random.nextDouble();  // Genera un numero aleatorio entre 0 y 1
-            valores[i] = A + (B - A) * u;  // Ajusta el valor aleatorio para que caiga en el rango [A, B)
+            // Genera un numero aleatorio entre 0 y 1
+            valores[i] = A + (B - A) * RND;  // Ajusta el valor aleatorio para que caiga en el rango [A, B)
         }
 
         return valores;  // Devuelve el arreglo con los valores generados
