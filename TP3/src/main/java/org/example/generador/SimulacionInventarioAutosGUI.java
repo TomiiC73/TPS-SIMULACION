@@ -4,6 +4,7 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
+import javax.swing.table.TableColumnModel;
 import java.awt.*;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -321,6 +322,10 @@ public class SimulacionInventarioAutosGUI {
         int pedidoPendiente = 0;
         int mesesRestantesEntrega = 0; // Inicialmente no hay pedidos en camino
         double costoTotal = 0;
+        double costoTotalAlmacenamiento = 0;
+        double costoTotalVentaPerdida = 0;
+        double costoTotalPedido = 0;
+        double costoTotalAcumulado = 0;
 
         for (int mes = 1; mes <= mesesSimular; mes++) {
             int inventarioInicial = inventario;
@@ -338,15 +343,18 @@ public class SimulacionInventarioAutosGUI {
             }
 
             // Resto de la lógica del mes (ventas, costos, etc.)
+            // Generar ventas
             double randomVentas = random.nextDouble();
             int ventas = generarVentas(randomVentas);
             int ventasReales = Math.min(ventas, inventario);
             int ventasPerdidas = ventas - ventasReales;
             inventario -= ventasReales;
 
+            // Calcular costos
             double costoAlmacen = inventario * this.costoAlmacenamiento;
             double costoVentasPerd = ventasPerdidas * this.costoVentaPerdida;
-            double costoPed = 0;
+
+            double costoPed = 0; // Al inicio es 0
             double randomEntrega = 0;
 
             // Hacer nuevo pedido si es necesario
@@ -363,7 +371,11 @@ public class SimulacionInventarioAutosGUI {
             }
 
             double costoMes = costoAlmacen + costoVentasPerd + costoPed;
+            costoTotalVentaPerdida += costoVentasPerd;
+            costoTotalAlmacenamiento += costoAlmacen;
+            costoTotalPedido += costoPed;
             costoTotal += costoMes;
+            costoTotalAcumulado += costoTotal;
 
             ResultadoMes resultado = new ResultadoMes(
                     mes,
@@ -374,12 +386,16 @@ public class SimulacionInventarioAutosGUI {
                     pedidoPendiente,
                     mesesRestantesEntrega,
                     costoAlmacen,
+                    costoTotalAlmacenamiento,
                     costoVentasPerd,
+                    costoTotalVentaPerdida,
                     costoPed,
+                    costoTotalPedido,
                     costoMes,
                     costoTotal,
                     randomVentas,
-                    randomEntrega
+                    randomEntrega,
+                    costoTotalAcumulado
             );
             resultados.add(resultado);
         }
@@ -404,11 +420,11 @@ public class SimulacionInventarioAutosGUI {
     private void mostrarResultadosGUI(List<ResultadoMes> resultados, int inicio, int fin) {
         JFrame resultadosFrame = new JFrame("Resultados de Simulación");
         resultadosFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        resultadosFrame.setSize(1200, 800);
+        resultadosFrame.setSize(1400, 800); // Aumenté el ancho para acomodar más columnas
         resultadosFrame.setLayout(new BorderLayout());
         resultadosFrame.getContentPane().setBackground(COLOR_FONDO);
 
-        // Panel de título (sin cambios)
+        // Panel de título
         JPanel titlePanel = new JPanel();
         titlePanel.setBackground(COLOR_ENCABEZADO);
         titlePanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
@@ -418,10 +434,26 @@ public class SimulacionInventarioAutosGUI {
         titlePanel.add(titleLabel);
         resultadosFrame.add(titlePanel, BorderLayout.NORTH);
 
-        // Crear tabla con los resultados
+        // Columnas de la tabla (actualizadas)
         String[] columnNames = {
-                "Mes", "Inventario inicial", "Inventario Final", "RND Ventas", "Ventas", "Stock Out", "Pedido", "RND Entrega", "Entrega",
-                "Costo Almacenaje", "Costo Stock Out", "Costo Pedido", "Costo Mes", "Costo Total"
+                "Mes",
+                "Inventario Inicial",
+                "Inventario Final",
+                "RND Ventas",
+                "Ventas",
+                "Stock Out",
+                "Pedido",
+                "RND Entrega",
+                "Entrega",
+                "Costo Almacenaje",
+                "Costo Almacenaje ++",
+                "Costo Stock Out",
+                "Costo Stock Out ++",
+                "Costo Pedido",
+                "Costo Pedido ++",
+                "Costo Mes",
+                "Costo Total",
+                "Costo Total ++"
         };
 
         DefaultTableModel model = new DefaultTableModel(columnNames, 0) {
@@ -432,8 +464,8 @@ public class SimulacionInventarioAutosGUI {
         };
 
         table = new JTable(model);
-        table.setFont(new Font("Lato", Font.PLAIN, 17));
-        table.setRowHeight(30);
+        table.setFont(new Font("Lato", Font.PLAIN, 14)); // Reduje el tamaño de fuente para más columnas
+        table.setRowHeight(25); // Reduje la altura de fila
         table.setGridColor(COLOR_BORDE);
         table.setBackground(COLOR_TABLA_FONDO);
         table.setSelectionBackground(new Color(200, 230, 255));
@@ -441,18 +473,16 @@ public class SimulacionInventarioAutosGUI {
         table.setShowGrid(true);
         table.setIntercellSpacing(new Dimension(0, 0));
 
-        // Crear renderizador centrado para todas las celdas
+        // Renderizadores
         DefaultTableCellRenderer centerRenderer = new CenterRenderer();
-
-        // Crear renderizador alineado a la derecha para columnas numéricas
         DefaultTableCellRenderer rightRenderer = new DefaultTableCellRenderer();
-        rightRenderer.setHorizontalAlignment(JLabel.RIGHT);
+        rightRenderer.setHorizontalAlignment(JLabel.CENTER);
 
-        // Aplicar renderizadores a las columnas
+        // Aplicar renderizadores
         for (int i = 0; i < table.getColumnCount(); i++) {
-            if (i < 6 || i >= 11) {  // Columnas no numéricas centradas
+            if (i == 0 || i == 3 || i == 7 || i == 8) { // Columnas centradas
                 table.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
-            } else {  // Columnas numéricas alineadas a la derecha
+            } else { // Columnas numéricas alineadas a la derecha
                 table.getColumnModel().getColumn(i).setCellRenderer(rightRenderer);
             }
         }
@@ -461,7 +491,7 @@ public class SimulacionInventarioAutosGUI {
         JTableHeader header = table.getTableHeader();
         header.setBackground(COLOR_ENCABEZADO);
         header.setForeground(Color.WHITE);
-        header.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        header.setFont(new Font("Segoe UI", Font.BOLD, 12));
 
         DefaultTableCellRenderer headerRenderer = new DefaultTableCellRenderer();
         headerRenderer.setHorizontalAlignment(JLabel.CENTER);
@@ -474,7 +504,7 @@ public class SimulacionInventarioAutosGUI {
 
         // Configurar anchos de columnas
         table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-        int[] columnWidths = {50, 80,80, 70, 70, 70, 70, 110, 110, 110, 110, 120, 100, 100};
+        int[] columnWidths = {50, 115, 120, 110, 60, 70, 60, 100, 60, 135, 140, 120, 130, 130, 130, 120, 120, 120};
         for (int i = 0; i < columnWidths.length; i++) {
             table.getColumnModel().getColumn(i).setPreferredWidth(columnWidths[i]);
         }
@@ -501,10 +531,14 @@ public class SimulacionInventarioAutosGUI {
                     resultado.randomEntrega > 0 ? String.format("%.4f", resultado.randomEntrega) : "-",
                     resultado.mesesRestantesEntrega > 0 ? resultado.mesesRestantesEntrega : "-",
                     String.format("$%,.2f", resultado.costoAlmacenamiento),
+                    String.format("$%,.2f", resultado.costoTotalAlmacenamiento),
                     String.format("$%,.2f", resultado.costoVentasPerdidas),
+                    String.format("$%,.2f", resultado.costoTotalVentasPerdidas),
                     String.format("$%,.2f", resultado.costoPedido),
+                    String.format("$%,.2f", resultado.costoTotalPedidos),
                     String.format("$%,.2f", resultado.costoMes),
                     String.format("$%,.2f", resultado.costoTotal),
+                    String.format("$%,.2f", resultado.costoTotalAcumulado)
             };
             model.addRow(rowData);
         }
@@ -722,17 +756,24 @@ public class SimulacionInventarioAutosGUI {
         int pedidoPendiente;
         int mesesRestantesEntrega;
         double costoAlmacenamiento;
+        double costoTotalAlmacenamiento;
         double costoVentasPerdidas;
+        double costoTotalVentasPerdidas;
         double costoPedido;
+        double costoTotalPedidos;
         double costoMes;
         double costoTotal;
         double randomVentas;
         double randomEntrega;
+        double costoTotalAcumulado;
 
         public ResultadoMes(int mes, int inventarioInicial, int inventarioFinal, int ventasReales, int ventasPerdidas,
                             int pedidoPendiente, int mesesRestantesEntrega,
-                            double costoAlmacenamiento, double costoVentasPerdidas, double costoPedido,
-                            double costoMes, double costoTotal, double randomVentas, double randomEntrega) {
+                            double costoAlmacenamiento, double costoTotalAlmacenamiento,
+                            double costoVentasPerdidas, double costoTotalVentasPerdidas,
+                            double costoPedido, double costoTotalPedidos,
+                            double costoMes, double costoTotal,
+                            double randomVentas, double randomEntrega, double costoTotalAcumulado) {
             this.mes = mes;
             this.inventarioInicial = inventarioInicial;
             this.inventarioFinal = inventarioFinal;
@@ -741,12 +782,16 @@ public class SimulacionInventarioAutosGUI {
             this.pedidoPendiente = pedidoPendiente;
             this.mesesRestantesEntrega = mesesRestantesEntrega;
             this.costoAlmacenamiento = costoAlmacenamiento;
+            this.costoTotalAlmacenamiento = costoTotalAlmacenamiento;
             this.costoVentasPerdidas = costoVentasPerdidas;
+            this.costoTotalVentasPerdidas = costoTotalVentasPerdidas;
             this.costoPedido = costoPedido;
+            this.costoTotalPedidos = costoTotalPedidos;
             this.costoMes = costoMes;
             this.costoTotal = costoTotal;
             this.randomVentas = randomVentas;
             this.randomEntrega = randomEntrega;
+            this.costoTotalAcumulado = costoTotalAcumulado;
         }
     }
 
@@ -757,10 +802,7 @@ public class SimulacionInventarioAutosGUI {
                     if(parametros.length != 2) throw new IllegalArgumentException("Uniforme necesita 2 parámetros [A, B]");
                     double[] uniforme = Uniform.generate(parametros[0], parametros[1], 1, RND);
                     int comodin = (int) Math.round(uniforme[0]);
-                    System.out.println(uniforme[0]);
-                    System.out.println("valor uniforme:" + comodin);
-                    System.out.println();
-                    return comodin; // Redondear hacia arriba
+                    return comodin;
 
                 case "NORMAL":
                     if(parametros.length != 2) throw new IllegalArgumentException("Normal necesita 2 parámetros [media, desviación]");
