@@ -30,6 +30,7 @@ import org.jfree.chart.plot.PiePlot;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DefaultPieDataset;
+import org.example.GUI.HistogramaVentasAutos;
 
 public class SimulacionInventarioAutosGUI {
 
@@ -247,6 +248,7 @@ public class SimulacionInventarioAutosGUI {
         txtProbEntrega.setEnabled(true);
         txtParametros.setEnabled(false);
 
+        //Para elegir
         comboTipoCarga.addActionListener(e -> {
             try{
                 String seleccion = (String) comboTipoCarga.getSelectedItem();
@@ -730,6 +732,16 @@ public class SimulacionInventarioAutosGUI {
         chartDialog.pack();
         chartDialog.setLocationRelativeTo(frame);
         chartDialog.setVisible(true);
+
+        // Mostrar histograma de ventas por meses
+        HistogramaVentasAutos hva = new HistogramaVentasAutos();
+        List<Integer> listaVentas = new ArrayList<>();
+
+        for (ResultadoMes resultado : resultados) {
+            listaVentas.add(resultado.ventas);
+        }
+
+        hva.mostrarHistogramaVentas(listaVentas.size(), listaVentas);
     }
     private JFreeChart createCostComparisonChart(List<ResultadoMes> resultados) {
         // Calcular promedios
