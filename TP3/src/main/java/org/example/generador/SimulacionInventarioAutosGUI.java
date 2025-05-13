@@ -138,32 +138,6 @@ public class SimulacionInventarioAutosGUI {
         Font fuenteCombobox = new Font("Lato", Font.PLAIN, 16);
         Font fuenteBoton = new Font("Lato", Font.BOLD, 16);
 
-        // Campos para distribución de ventas
-        JLabel lblVentas = new JLabel("Valores de ventas (separados por comas) $:");
-        lblVentas.setFont(fuenteLabels);
-        lblVentas.setForeground(Color.BLACK);
-        JTextField txtVentas = new JTextField("6,7,8,9,10,11,12");
-        txtVentas.setFont(fuenteTextFields);
-        panel.add(lblVentas);
-        panel.add(txtVentas);
-
-        JLabel lblFrecuencias = new JLabel("Frecuencias de ventas (separadas por comas):");
-        lblFrecuencias.setFont(fuenteLabels);
-        lblFrecuencias.setForeground(Color.BLACK);
-        JTextField txtFrecuencias = new JTextField("3,4,6,12,9,1,1");
-        txtFrecuencias.setFont(fuenteTextFields);
-        panel.add(lblFrecuencias);
-        panel.add(txtFrecuencias);
-
-        // Campos para probabilidades de entrega
-        JLabel lblProbEntrega = new JLabel("Probabilidades de entrega (suma = 1, separadas por comas):");
-        lblProbEntrega.setFont(fuenteLabels);
-        lblProbEntrega.setForeground(Color.BLACK);
-        JTextField txtProbEntrega = new JTextField("0.44,0.33,0.16,0.07");
-        txtProbEntrega.setFont(fuenteTextFields);
-        panel.add(lblProbEntrega);
-        panel.add(txtProbEntrega);
-
         // Campos para costos
         JLabel lblCostoAlmacen = new JLabel("Costo de almacenamiento por auto/mes:");
         lblCostoAlmacen.setFont(fuenteLabels);
@@ -206,6 +180,23 @@ public class SimulacionInventarioAutosGUI {
         panel.add(lblCantidadPedido);
         panel.add(txtCantidadPedido);
 
+        // Campos para distribución de ventas
+        JLabel lblVentas = new JLabel("Coches vendidos por mes (separados por comas):");
+        lblVentas.setFont(fuenteLabels);
+        lblVentas.setForeground(Color.BLACK);
+        JTextField txtVentas = new JTextField("6,7,8,9,10,11,12");
+        txtVentas.setFont(fuenteTextFields);
+        panel.add(lblVentas);
+        panel.add(txtVentas);
+
+        JLabel lblFrecuencias = new JLabel("Frecuencias de ventas (separadas por comas):");
+        lblFrecuencias.setFont(fuenteLabels);
+        lblFrecuencias.setForeground(Color.BLACK);
+        JTextField txtFrecuencias = new JTextField("3,4,6,12,9,1,1");
+        txtFrecuencias.setFont(fuenteTextFields);
+        panel.add(lblFrecuencias);
+        panel.add(txtFrecuencias);
+
         // Configuración de distribución de tiempo de entrega
         JLabel lblDistribucion = new JLabel("Distribución para tiempo de entrega:");
         lblDistribucion.setFont(fuenteLabels);
@@ -216,6 +207,34 @@ public class SimulacionInventarioAutosGUI {
         panel.add(lblDistribucion);
         panel.add(comboDistribuciones);
 
+        // Elegir entre carga manual o carga por estadísticos
+        JLabel lblTipoCarga = new JLabel("Distribución para tiempo de entrega:");
+        lblTipoCarga.setFont(fuenteLabels);
+        lblTipoCarga.setForeground(Color.BLACK);
+        String[] tipoCarga = {"Manual", "Estadísticos"};
+        JComboBox<String> comboTipoCarga = new JComboBox<>(tipoCarga);
+        comboDistribuciones.setFont(fuenteCombobox);
+        panel.add(lblTipoCarga);
+        panel.add(comboTipoCarga);
+
+        // Campos para distribución de ventas
+        JLabel lblDemora = new JLabel("Demora del proveedor (separados por comas):");
+        lblDemora.setFont(fuenteLabels);
+        lblDemora.setForeground(Color.BLACK);
+        JTextField txtDemora = new JTextField("1,2,3,4");
+        lblDemora.setFont(fuenteTextFields);
+        panel.add(lblDemora);
+        panel.add(txtDemora);
+
+        // Campos para probabilidades de entrega
+        JLabel lblProbEntrega = new JLabel("Probabilidades de demora (suma = 1, separadas por comas):");
+        lblProbEntrega.setFont(fuenteLabels);
+        lblProbEntrega.setForeground(Color.BLACK);
+        JTextField txtProbEntrega = new JTextField("0.44,0.33,0.16,0.07");
+        txtProbEntrega.setFont(fuenteTextFields);
+        panel.add(lblProbEntrega);
+        panel.add(txtProbEntrega);
+
         JLabel lblParametros = new JLabel("Parámetros (separados por comas):");
         lblParametros.setFont(fuenteLabels);
         lblParametros.setForeground(Color.BLACK);
@@ -223,6 +242,27 @@ public class SimulacionInventarioAutosGUI {
         txtParametros.setFont(fuenteTextFields);
         panel.add(lblParametros);
         panel.add(txtParametros);
+
+        txtDemora.setEnabled(true);
+        txtProbEntrega.setEnabled(true);
+        txtParametros.setEnabled(false);
+
+        comboTipoCarga.addActionListener(e -> {
+            try{
+                String seleccion = (String) comboTipoCarga.getSelectedItem();
+                if ("Manual".equals(seleccion)) {
+                    txtDemora.setEnabled(true);
+                    txtProbEntrega.setEnabled(true);
+                    txtParametros.setEnabled(false);
+                } else {
+                    txtDemora.setEnabled(false);
+                    txtProbEntrega.setEnabled(false);
+                    txtParametros.setEnabled(true);
+                }
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+        });
 
         // Configurar el botón con fuente grande
         JButton btnGuardar = new JButton("Guardar Configuración");
@@ -244,6 +284,7 @@ public class SimulacionInventarioAutosGUI {
                 cantidadPedido = Integer.parseInt(txtCantidadPedido.getText());
                 distribucionEntrega = (String) comboDistribuciones.getSelectedItem();
 
+                // Obtenemos parámetros del txtParametros y lo parseamos a double
                 String[] parametrosStr = txtParametros.getText().split(",");
                 parametrosDistribucion = new double[parametrosStr.length];
                 for(int i = 0; i < parametrosStr.length; i++) {
@@ -325,7 +366,8 @@ public class SimulacionInventarioAutosGUI {
         double costoTotalAlmacenamiento = 0;
         double costoTotalVentaPerdida = 0;
         double costoTotalPedido = 0;
-        double costoTotalAcumulado = 0;
+        //double costoTotalAcumulado = 0;
+        double costoTotalPromedio = 0;
 
         for (int mes = 1; mes <= mesesSimular; mes++) {
             int inventarioInicial = inventario;
@@ -375,12 +417,13 @@ public class SimulacionInventarioAutosGUI {
             costoTotalAlmacenamiento += costoAlmacen;
             costoTotalPedido += costoPed;
             costoTotal += costoMes;
-            costoTotalAcumulado += costoTotal;
+            costoTotalPromedio = costoTotal / mes;
 
             ResultadoMes resultado = new ResultadoMes(
                     mes,
                     inventarioInicial,
                     inventario,
+                    ventas,
                     ventasReales,
                     ventasPerdidas,
                     pedidoPendiente,
@@ -395,7 +438,7 @@ public class SimulacionInventarioAutosGUI {
                     costoTotal,
                     randomVentas,
                     randomEntrega,
-                    costoTotalAcumulado
+                    costoTotalPromedio
             );
             resultados.add(resultado);
         }
@@ -438,11 +481,12 @@ public class SimulacionInventarioAutosGUI {
         String[] columnNames = {
                 "Mes",
                 "Inventario Inicial",
-                "Inventario Final",
                 "RND Ventas",
                 "Ventas",
+                "Ventas Concretadas",
                 "Stock Out",
                 "Pedido",
+                "Inventario Final",
                 "RND Entrega",
                 "Entrega",
                 "Costo Almacenaje",
@@ -453,7 +497,7 @@ public class SimulacionInventarioAutosGUI {
                 "Costo Pedido ++",
                 "Costo Mes",
                 "Costo Total",
-                "Costo Total ++"
+                "Costo Total Promedio"
         };
 
         DefaultTableModel model = new DefaultTableModel(columnNames, 0) {
@@ -480,7 +524,7 @@ public class SimulacionInventarioAutosGUI {
 
         // Aplicar renderizadores
         for (int i = 0; i < table.getColumnCount(); i++) {
-            if (i == 0 || i == 3 || i == 7 || i == 8) { // Columnas centradas
+            if (i == 0 || i == 2 || i == 8 || i == 16) { // Le añado colorcito
                 table.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
             } else { // Columnas numéricas alineadas a la derecha
                 table.getColumnModel().getColumn(i).setCellRenderer(rightRenderer);
@@ -504,7 +548,7 @@ public class SimulacionInventarioAutosGUI {
 
         // Configurar anchos de columnas
         table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-        int[] columnWidths = {50, 115, 120, 110, 60, 70, 60, 100, 60, 135, 140, 120, 130, 130, 130, 120, 120, 120};
+        int[] columnWidths = {50, 115, 110, 60, 60, 70, 60, 120, 100, 60, 135, 140, 120, 130, 130, 130, 120, 120, 120};
         for (int i = 0; i < columnWidths.length; i++) {
             table.getColumnModel().getColumn(i).setPreferredWidth(columnWidths[i]);
         }
@@ -514,20 +558,26 @@ public class SimulacionInventarioAutosGUI {
 
         // Llenar la tabla con los datos
         List<ResultadoMes> resultadosMostrar = new ArrayList<>();
-        for (int i = inicio - 1; i < fin && i < resultados.size(); i++) {
+
+
+        for (int i = inicio - 1; i < fin; i++) {
+            if(i == resultados.size() - 1){
+                break;
+            }
             resultadosMostrar.add(resultados.get(i));
         }
-        resultadosMostrar.add(resultados.get(resultados.size() - 1));
+        resultadosMostrar.add(resultados.getLast());
 
         for (ResultadoMes resultado : resultadosMostrar) {
             Object[] rowData = {
                     resultado.mes,
                     resultado.inventarioInicial,
-                    resultado.inventarioFinal,
                     String.format("%.4f", resultado.randomVentas),
+                    resultado.ventas,
                     resultado.ventasReales,
                     resultado.ventasPerdidas,
                     resultado.pedidoPendiente,
+                    resultado.inventarioFinal,
                     resultado.randomEntrega > 0 ? String.format("%.4f", resultado.randomEntrega) : "-",
                     resultado.mesesRestantesEntrega > 0 ? resultado.mesesRestantesEntrega : "-",
                     String.format("$%,.2f", resultado.costoAlmacenamiento),
@@ -538,7 +588,7 @@ public class SimulacionInventarioAutosGUI {
                     String.format("$%,.2f", resultado.costoTotalPedidos),
                     String.format("$%,.2f", resultado.costoMes),
                     String.format("$%,.2f", resultado.costoTotal),
-                    String.format("$%,.2f", resultado.costoTotalAcumulado)
+                    String.format("$%,.2f", resultado.costoTotalPromedio)
             };
             model.addRow(rowData);
         }
@@ -772,6 +822,7 @@ public class SimulacionInventarioAutosGUI {
         int mes;
         int inventarioInicial;
         int inventarioFinal;
+        int ventas;
         int ventasReales;
         int ventasPerdidas;
         int pedidoPendiente;
@@ -786,18 +837,19 @@ public class SimulacionInventarioAutosGUI {
         double costoTotal;
         double randomVentas;
         double randomEntrega;
-        double costoTotalAcumulado;
+        double costoTotalPromedio;
 
-        public ResultadoMes(int mes, int inventarioInicial, int inventarioFinal, int ventasReales, int ventasPerdidas,
+        public ResultadoMes(int mes, int inventarioInicial, int inventarioFinal, int ventas, int ventasReales, int ventasPerdidas,
                             int pedidoPendiente, int mesesRestantesEntrega,
                             double costoAlmacenamiento, double costoTotalAlmacenamiento,
                             double costoVentasPerdidas, double costoTotalVentasPerdidas,
                             double costoPedido, double costoTotalPedidos,
                             double costoMes, double costoTotal,
-                            double randomVentas, double randomEntrega, double costoTotalAcumulado) {
+                            double randomVentas, double randomEntrega, double costoTotalPromedio) {
             this.mes = mes;
             this.inventarioInicial = inventarioInicial;
             this.inventarioFinal = inventarioFinal;
+            this.ventas = ventas;
             this.ventasReales = ventasReales;
             this.ventasPerdidas = ventasPerdidas;
             this.pedidoPendiente = pedidoPendiente;
@@ -812,7 +864,7 @@ public class SimulacionInventarioAutosGUI {
             this.costoTotal = costoTotal;
             this.randomVentas = randomVentas;
             this.randomEntrega = randomEntrega;
-            this.costoTotalAcumulado = costoTotalAcumulado;
+            this.costoTotalPromedio = costoTotalPromedio;
         }
     }
 
