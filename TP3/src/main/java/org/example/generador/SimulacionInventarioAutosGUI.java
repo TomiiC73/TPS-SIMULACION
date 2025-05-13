@@ -250,7 +250,7 @@ public class SimulacionInventarioAutosGUI {
 
         //Para elegir
         comboTipoCarga.addActionListener(e -> {
-            try{
+            try {
                 String seleccion = (String) comboTipoCarga.getSelectedItem();
                 if ("Manual".equals(seleccion)) {
                     txtDemora.setEnabled(true);
@@ -289,7 +289,7 @@ public class SimulacionInventarioAutosGUI {
                 // Obtenemos parámetros del txtParametros y lo parseamos a double
                 String[] parametrosStr = txtParametros.getText().split(",");
                 parametrosDistribucion = new double[parametrosStr.length];
-                for(int i = 0; i < parametrosStr.length; i++) {
+                for (int i = 0; i < parametrosStr.length; i++) {
                     parametrosDistribucion[i] = Double.parseDouble(parametrosStr[i].trim());
                 }
 
@@ -318,6 +318,7 @@ public class SimulacionInventarioAutosGUI {
         dialog.setLocationRelativeTo(frame);
         dialog.setVisible(true);
     }
+
     private int[] parsearEnteros(String input) {
         String[] partes = input.split(",");
         int[] resultado = new int[partes.length];
@@ -341,10 +342,10 @@ public class SimulacionInventarioAutosGUI {
             // Obtener componentes del panel de entrada
             Component[] components = inputPanel.getComponents();
 
-            int mesesSimular = Integer.parseInt(((JTextField)components[1]).getText());
-            int stockInicial = Integer.parseInt(((JTextField)components[3]).getText());
-            int filaInicio = Integer.parseInt(((JTextField)components[5]).getText());
-            int filaFin = Integer.parseInt(((JTextField)components[7]).getText());
+            int mesesSimular = Integer.parseInt(((JTextField) components[1]).getText());
+            int stockInicial = Integer.parseInt(((JTextField) components[3]).getText());
+            int filaInicio = Integer.parseInt(((JTextField) components[5]).getText());
+            int filaFin = Integer.parseInt(((JTextField) components[7]).getText());
 
             // Validar que se haya configurado la parte avanzada
             if (ventasCoches == null) {
@@ -356,6 +357,446 @@ public class SimulacionInventarioAutosGUI {
             JOptionPane.showMessageDialog(frame, "Por favor ingrese valores numéricos válidos", "Error", JOptionPane.ERROR_MESSAGE);
         } catch (IllegalStateException ex) {
             JOptionPane.showMessageDialog(frame, ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void mostrarResultadosGUI(List<ResultadoMes> resultados, int inicio, int fin) {
+        JFrame resultadosFrame = new JFrame("Resultados de Simulación");
+        resultadosFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        resultadosFrame.setSize(1400, 800); // Aumenté el ancho para acomodar más columnas
+        resultadosFrame.setLayout(new BorderLayout());
+        resultadosFrame.getContentPane().setBackground(COLOR_FONDO);
+
+        // Panel de título
+        JPanel titlePanel = new JPanel();
+        titlePanel.setBackground(COLOR_ENCABEZADO);
+        titlePanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
+        JLabel titleLabel = new JLabel("RESULTADOS DE LA SIMULACIÓN");
+        titleLabel.setFont(new Font("Lato", Font.BOLD, 18));
+        titleLabel.setForeground(Color.WHITE);
+        titlePanel.add(titleLabel);
+        resultadosFrame.add(titlePanel, BorderLayout.NORTH);
+
+        // Columnas de la tabla (actualizadas)
+        String[] columnNames = {
+                "Mes",
+                "Inventario Inicial",
+                "RND Ventas",
+                "Ventas",
+                "Ventas Concretadas",
+                "Stock Out",
+                "Pedido",
+                "Inventario Final",
+                "RND Entrega",
+                "Entrega",
+                "Costo Almacenaje",
+                "Costo Almacenaje ++",
+                "Costo Stock Out",
+                "Costo Stock Out ++",
+                "Costo Pedido",
+                "Costo Pedido ++",
+                "Costo Mes",
+                "Costo Total",
+                "Costo Total Promedio"
+        };
+
+        DefaultTableModel model = new DefaultTableModel(columnNames, 0) {
+            @Override
+            public Class<?> getColumnClass(int columnIndex) {
+                return columnIndex == 0 ? Integer.class : Object.class;
+            }
+        };
+
+        table = new JTable(model);
+        table.setFont(new Font("Lato", Font.PLAIN, 14)); // Reduje el tamaño de fuente para más columnas
+        table.setRowHeight(25); // Reduje la altura de fila
+        table.setGridColor(COLOR_BORDE);
+        table.setBackground(COLOR_TABLA_FONDO);
+        table.setSelectionBackground(new Color(200, 230, 255));
+        table.setSelectionForeground(Color.BLACK);
+        table.setShowGrid(true);
+        table.setIntercellSpacing(new Dimension(0, 0));
+
+        // Renderizadores
+        DefaultTableCellRenderer centerRenderer = new CenterRenderer();
+        DefaultTableCellRenderer rightRenderer = new DefaultTableCellRenderer();
+        rightRenderer.setHorizontalAlignment(JLabel.CENTER);
+
+        // Aplicar renderizadores
+        for (int i = 0; i < table.getColumnCount(); i++) {
+            if (i == 0 || i == 2 || i == 8 || i == 16) { // Le añado colorcito
+                table.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
+            } else { // Columnas numéricas alineadas a la derecha
+                table.getColumnModel().getColumn(i).setCellRenderer(rightRenderer);
+            }
+        }
+
+        // Configurar encabezados
+        JTableHeader header = table.getTableHeader();
+        header.setBackground(COLOR_ENCABEZADO);
+        header.setForeground(Color.WHITE);
+        header.setFont(new Font("Segoe UI", Font.BOLD, 12));
+
+        DefaultTableCellRenderer headerRenderer = new DefaultTableCellRenderer();
+        headerRenderer.setHorizontalAlignment(JLabel.CENTER);
+        headerRenderer.setBackground(COLOR_ENCABEZADO);
+        headerRenderer.setForeground(Color.WHITE);
+
+        for (int i = 0; i < table.getColumnCount(); i++) {
+            table.getColumnModel().getColumn(i).setHeaderRenderer(headerRenderer);
+        }
+
+        // Configurar anchos de columnas
+        table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+        int[] columnWidths = {50, 115, 110, 60, 60, 70, 60, 120, 100, 60, 135, 140, 120, 130, 130, 130, 120, 120, 120};
+        for (int i = 0; i < columnWidths.length; i++) {
+            table.getColumnModel().getColumn(i).setPreferredWidth(columnWidths[i]);
+        }
+
+        JScrollPane scrollPane = new JScrollPane(table);
+        scrollPane.setBorder(BorderFactory.createLineBorder(COLOR_BORDE));
+
+        // Llenar la tabla con los datos
+        List<ResultadoMes> resultadosMostrar = new ArrayList<>();
+
+
+        for (int i = inicio - 1; i < fin; i++) {
+            if (i == resultados.size() - 1) {
+                break;
+            }
+            resultadosMostrar.add(resultados.get(i));
+        }
+        resultadosMostrar.add(resultados.getLast());
+
+        for (ResultadoMes resultado : resultadosMostrar) {
+            Object[] rowData = {
+                    resultado.mes,
+                    resultado.inventarioInicial,
+                    String.format("%.4f", resultado.randomVentas),
+                    resultado.ventas,
+                    resultado.ventasReales,
+                    resultado.ventasPerdidas,
+                    resultado.pedidoPendiente,
+                    resultado.inventarioFinal,
+                    resultado.randomEntrega > 0 ? String.format("%.4f", resultado.randomEntrega) : "-",
+                    resultado.mesesRestantesEntrega > 0 ? resultado.mesesRestantesEntrega : "-",
+                    String.format("$%,.2f", resultado.costoAlmacenamiento),
+                    String.format("$%,.2f", resultado.costoTotalAlmacenamiento),
+                    String.format("$%,.2f", resultado.costoVentasPerdidas),
+                    String.format("$%,.2f", resultado.costoTotalVentasPerdidas),
+                    String.format("$%,.2f", resultado.costoPedido),
+                    String.format("$%,.2f", resultado.costoTotalPedidos),
+                    String.format("$%,.2f", resultado.costoMes),
+                    String.format("$%,.2f", resultado.costoTotal),
+                    String.format("$%,.2f", resultado.costoTotalPromedio)
+            };
+            model.addRow(rowData);
+        }
+
+        // Panel de métricas
+        metricsArea = new JTextArea();
+        metricsArea.setEditable(false);
+        metricsArea.setFont(new Font("Consolas", Font.PLAIN, 14));
+        metricsArea.setBackground(COLOR_METRICAS_FONDO);
+        metricsArea.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(COLOR_BORDE),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)));
+
+        // Generar métricas
+        generarMetricas(resultados);
+
+        // Dividir la ventana
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, scrollPane, new JScrollPane(metricsArea));
+        splitPane.setResizeWeight(0.7);
+        splitPane.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+
+        resultadosFrame.add(splitPane, BorderLayout.CENTER);
+        resultadosFrame.setLocationRelativeTo(frame);
+        resultadosFrame.setVisible(true);
+    }
+
+    private void generarMetricas(List<ResultadoMes> resultados) {
+        StringBuilder metricsBuilder = new StringBuilder();
+        metricsBuilder.append("MÉTRICAS DETALLADAS DE LA SIMULACIÓN\n");
+        metricsBuilder.append("====================================\n\n");
+
+        // 1. Métricas básicas
+        metricsBuilder.append("■ DATOS GENERALES\n");
+        metricsBuilder.append(String.format("  - Duración de la simulación: %,d meses\n", resultados.size()));
+        metricsBuilder.append(String.format("  - Stock inicial: %,d autos\n", resultados.get(0).inventarioInicial));
+        metricsBuilder.append(String.format("  - Punto de reorden configurado: %,d autos\n", puntoReorden));
+        metricsBuilder.append(String.format("  - Cantidad de pedido configurada: %,d autos\n", cantidadPedido));
+        metricsBuilder.append("\n");
+
+        // 2. Análisis de pedidos
+        long totalPedidos = resultados.stream().filter(r -> r.costoPedido > 0).count();
+        metricsBuilder.append("■ ANÁLISIS DE PEDIDOS\n");
+        metricsBuilder.append(String.format("  - Total de pedidos realizados: %,d\n", totalPedidos));
+        metricsBuilder.append(String.format("  - Costo total en pedidos: $%,.2f\n",
+                resultados.stream().mapToDouble(r -> r.costoPedido).sum()));
+        metricsBuilder.append(String.format("  - Costo promedio por pedido: $%,.2f\n",
+                totalPedidos > 0 ? resultados.stream().mapToDouble(r -> r.costoPedido).sum() / totalPedidos : 0));
+        metricsBuilder.append("\n");
+
+        // 3. Análisis detallado de costos
+        double costoTotal = resultados.get(resultados.size() - 1).costoTotal;
+        double costoPromedioMensual = costoTotal / resultados.size();
+        double costoTotalAlmacenamiento = resultados.stream().mapToDouble(r -> r.costoAlmacenamiento).sum();
+        double costoPromedioAlmacenamiento = costoTotalAlmacenamiento / resultados.size();
+        double costoTotalVentasPerdidas = resultados.stream().mapToDouble(r -> r.costoVentasPerdidas).sum();
+
+        metricsBuilder.append("■ ANÁLISIS DE COSTOS\n");
+        metricsBuilder.append(String.format("  - Costo total acumulado: $%,.2f\n", costoTotal));
+        metricsBuilder.append(String.format("  - Costo promedio mensual: $%,.2f\n", costoPromedioMensual));
+        metricsBuilder.append("\n  Desglose de costos:\n");
+        metricsBuilder.append(String.format("  - Almacenamiento: $%,.2f (%.1f%% del total)\n",
+                costoTotalAlmacenamiento, (costoTotalAlmacenamiento * 100 / costoTotal)));
+        metricsBuilder.append(String.format("  - Ventas perdidas: $%,.2f (%.1f%% del total)\n",
+                costoTotalVentasPerdidas, (costoTotalVentasPerdidas * 100 / costoTotal)));
+        metricsBuilder.append(String.format("  - Pedidos: $%,.2f (%.1f%% del total)\n",
+                resultados.stream().mapToDouble(r -> r.costoPedido).sum(),
+                (resultados.stream().mapToDouble(r -> r.costoPedido).sum() * 100 / costoTotal)));
+        metricsBuilder.append("\n");
+
+        // 4. Análisis de ventas
+        int totalVentas = resultados.stream().mapToInt(r -> r.ventasReales).sum();
+        int totalVentasPerdidas = resultados.stream().mapToInt(r -> r.ventasPerdidas).sum();
+        double porcentajeVentasPerdidas = (double) totalVentasPerdidas * 100 / (totalVentas + totalVentasPerdidas);
+
+        metricsBuilder.append("■ ANÁLISIS DE VENTAS\n");
+        metricsBuilder.append(String.format("  - Total de autos vendidos: %,d\n", totalVentas));
+        metricsBuilder.append(String.format("  - Total de ventas perdidas: %,d (%.1f%% de oportunidades)\n",
+                totalVentasPerdidas, porcentajeVentasPerdidas));
+        metricsBuilder.append("\n");
+
+        // 5. Análisis de inventario
+        int maxInventario = resultados.stream().mapToInt(r -> r.inventarioInicial).max().orElse(0);
+        int minInventario = resultados.stream().mapToInt(r -> r.inventarioFinal).min().orElse(0);
+
+        metricsBuilder.append("■ ANÁLISIS DE INVENTARIO\n");
+        metricsBuilder.append(String.format("  - Máximo inventario: %,d autos\n", maxInventario));
+        metricsBuilder.append(String.format("  - Mínimo inventario: %,d autos\n", minInventario));
+        metricsBuilder.append("\n");
+
+        // Métricas de efectividad del punto de reorden
+        int mesesBajoReorden = (int) resultados.stream()
+                .filter(r -> r.inventarioFinal <= puntoReorden)
+                .count();
+        double efectividadReorden = (double) mesesBajoReorden / resultados.size() * 100;
+
+        metricsBuilder.append("■ EFECTIVIDAD DEL PUNTO DE REORDEN\n");
+        metricsBuilder.append(String.format("  - Veces que cayó bajo punto de reorden: %,d/%,d meses\n",
+                mesesBajoReorden, resultados.size()));
+        metricsBuilder.append(String.format("  - Porcentaje de efectividad: %.1f%%\n", efectividadReorden));
+
+        // Configurar el área de texto
+        metricsArea.setText(metricsBuilder.toString());
+
+        // Crear y mostrar gráficos comparativos
+        crearYMostrarGraficos(resultados);
+    }
+
+    private void crearYMostrarGraficos(List<ResultadoMes> resultados) {
+        // Crear un nuevo panel para los gráficos
+        JPanel chartsPanel = new JPanel(new GridLayout(1, 2));
+        chartsPanel.setBackground(COLOR_METRICAS_FONDO);
+
+        // Crear los gráficos
+        chartsPanel.add(new ChartPanel(createCostComparisonChart(resultados)));
+        chartsPanel.add(new ChartPanel(createCostDistributionChart(resultados)));
+
+        // Crear un nuevo panel principal
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.add(new JScrollPane(metricsArea), BorderLayout.CENTER);
+        mainPanel.add(chartsPanel, BorderLayout.SOUTH);
+
+        // Mostrar en un nuevo diálogo
+        JDialog chartDialog = new JDialog();
+        chartDialog.setTitle("Gráficos de Resultados");
+        chartDialog.setContentPane(mainPanel);
+        chartDialog.pack();
+        chartDialog.setLocationRelativeTo(frame);
+        chartDialog.setVisible(true);
+
+        // Mostrar histograma de ventas por meses
+        HistogramaVentasAutos hva = new HistogramaVentasAutos();
+        List<Integer> listaVentas = new ArrayList<>();
+
+        for (ResultadoMes resultado : resultados) {
+            listaVentas.add(resultado.ventas);
+        }
+
+        hva.mostrarHistogramaVentas(listaVentas.size(), listaVentas);
+    }
+
+    private JFreeChart createCostComparisonChart(List<ResultadoMes> resultados) {
+        // Calcular promedios
+        double avgOrderCost = resultados.stream().mapToDouble(r -> r.costoPedido).average().orElse(0);
+        double avgStorageCost = resultados.stream().mapToDouble(r -> r.costoAlmacenamiento).average().orElse(0);
+        double avgStockOutCost = resultados.stream().mapToDouble(r -> r.costoVentasPerdidas).average().orElse(0);
+
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+        dataset.addValue(avgOrderCost, "Costos", "Pedidos");
+        dataset.addValue(avgStorageCost, "Costos", "Almacenamiento");
+        dataset.addValue(avgStockOutCost, "Costos", "Ventas Perdidas");
+
+        JFreeChart chart = ChartFactory.createBarChart(
+                "Comparación de Costos Promedio Mensual",
+                "Tipo de Costo",
+                "Costo Promedio ($)",
+                dataset,
+                PlotOrientation.VERTICAL,
+                true, true, false);
+
+        // Personalización del gráfico
+        chart.setBackgroundPaint(COLOR_METRICAS_FONDO);
+        CategoryPlot plot = chart.getCategoryPlot();
+        plot.setBackgroundPaint(Color.WHITE);
+        plot.setRangeGridlinePaint(COLOR_BORDE);
+        plot.getRenderer().setSeriesPaint(0, new Color(74, 111, 165));
+        plot.getRangeAxis().setUpperMargin(0.05);
+
+        return chart;
+    }
+
+    private JFreeChart createCostDistributionChart(List<ResultadoMes> resultados) {
+        // Calcular totales
+        double totalAlmacenamiento = resultados.stream().mapToDouble(r -> r.costoAlmacenamiento).sum();
+        double totalVentasPerdidas = resultados.stream().mapToDouble(r -> r.costoVentasPerdidas).sum();
+        double totalPedidos = resultados.stream().mapToDouble(r -> r.costoPedido).sum();
+
+        DefaultPieDataset dataset = new DefaultPieDataset();
+        dataset.setValue("Almacenamiento", totalAlmacenamiento);
+        dataset.setValue("Ventas Perdidas", totalVentasPerdidas);
+        dataset.setValue("Pedidos", totalPedidos);
+
+        JFreeChart chart = ChartFactory.createPieChart(
+                "Distribución Porcentual de Costos",
+                dataset,
+                true, true, false);
+
+        // Personalización del gráfico
+        chart.setBackgroundPaint(COLOR_METRICAS_FONDO);
+        PiePlot plot = (PiePlot) chart.getPlot();
+        plot.setBackgroundPaint(Color.WHITE);
+        plot.setSectionPaint("Almacenamiento", new Color(205, 202, 0));
+        plot.setSectionPaint("Ventas Perdidas", new Color(220, 80, 80));
+        plot.setSectionPaint("Pedidos", new Color(181, 13, 223));
+        plot.setLabelGenerator(new StandardPieSectionLabelGenerator("{0}: {1} ({2})",
+                NumberFormat.getCurrencyInstance(), NumberFormat.getPercentInstance()));
+
+        return chart;
+    }
+
+    private static class CenterRenderer extends DefaultTableCellRenderer {
+        public CenterRenderer() {
+            setHorizontalAlignment(JLabel.CENTER);
+            setVerticalAlignment(JLabel.CENTER);
+            setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 5));
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                                                       boolean isSelected, boolean hasFocus, int row, int column) {
+            super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+
+            if (!isSelected) {
+                setBackground(row % 2 == 0 ? COLOR_TABLA_FONDO : COLOR_TABLA_ALTERNADO);
+            }
+
+            if (value instanceof String && ((String) value).startsWith("-")) {
+                setForeground(Color.RED);
+            } else {
+                setForeground(Color.BLACK);
+            }
+
+            setFont(getFont().deriveFont(column == 0 ? Font.BOLD : Font.PLAIN));
+
+            return this;
+        }
+    }
+
+    private static class ResultadoMes {
+        int mes;
+        int inventarioInicial;
+        int inventarioFinal;
+        int ventas;
+        int ventasReales;
+        int ventasPerdidas;
+        int pedidoPendiente;
+        int mesesRestantesEntrega;
+        double costoAlmacenamiento;
+        double costoTotalAlmacenamiento;
+        double costoVentasPerdidas;
+        double costoTotalVentasPerdidas;
+        double costoPedido;
+        double costoTotalPedidos;
+        double costoMes;
+        double costoTotal;
+        double randomVentas;
+        double randomEntrega;
+        double costoTotalPromedio;
+
+        public ResultadoMes(int mes, int inventarioInicial, int inventarioFinal, int ventas, int ventasReales, int ventasPerdidas,
+                            int pedidoPendiente, int mesesRestantesEntrega,
+                            double costoAlmacenamiento, double costoTotalAlmacenamiento,
+                            double costoVentasPerdidas, double costoTotalVentasPerdidas,
+                            double costoPedido, double costoTotalPedidos,
+                            double costoMes, double costoTotal,
+                            double randomVentas, double randomEntrega, double costoTotalPromedio) {
+            this.mes = mes;
+            this.inventarioInicial = inventarioInicial;
+            this.inventarioFinal = inventarioFinal;
+            this.ventas = ventas;
+            this.ventasReales = ventasReales;
+            this.ventasPerdidas = ventasPerdidas;
+            this.pedidoPendiente = pedidoPendiente;
+            this.mesesRestantesEntrega = mesesRestantesEntrega;
+            this.costoAlmacenamiento = costoAlmacenamiento;
+            this.costoTotalAlmacenamiento = costoTotalAlmacenamiento;
+            this.costoVentasPerdidas = costoVentasPerdidas;
+            this.costoTotalVentasPerdidas = costoTotalVentasPerdidas;
+            this.costoPedido = costoPedido;
+            this.costoTotalPedidos = costoTotalPedidos;
+            this.costoMes = costoMes;
+            this.costoTotal = costoTotal;
+            this.randomVentas = randomVentas;
+            this.randomEntrega = randomEntrega;
+            this.costoTotalPromedio = costoTotalPromedio;
+        }
+    }
+
+    public class GeneradorDistribuciones {
+        public static int generarTiempoEntrega(String tipoDistribucion, double RND, double[] parametros) {
+            switch (tipoDistribucion.toUpperCase()) {
+                case "UNIFORME":
+                    if (parametros.length != 2)
+                        throw new IllegalArgumentException("Uniforme necesita 2 parámetros [A, B]");
+                    double[] uniforme = Uniform.generate(parametros[0], parametros[1], 1, RND);
+                    int comodin = (int) Math.round(uniforme[0]);
+                    return comodin;
+
+                case "NORMAL":
+                    if (parametros.length != 2)
+                        throw new IllegalArgumentException("Normal necesita 2 parámetros [media, desviación]");
+                    double[] normal = Normal.generate(parametros[0], parametros[1], 1);
+                    return (int) Math.max(1, Math.min(4, Math.ceil(normal[0])));
+
+                case "POISSON":
+                    if (parametros.length != 1)
+                        throw new IllegalArgumentException("Poisson necesita 1 parámetro [lambda]");
+                    double[] poisson = Poisson.generate(parametros[0], 1);
+                    return (int) Math.max(1, Math.min(4, Math.ceil(poisson[0])));
+
+                case "EXPONENCIAL":
+                    if (parametros.length != 1)
+                        throw new IllegalArgumentException("Exponencial necesita 1 parámetro [lambda]");
+                    double[] exponencial = Exponential.generate(parametros[0], 1);
+                    return (int) Math.max(1, Math.min(4, Math.ceil(exponencial[0])));
+
+                default:
+                    throw new IllegalArgumentException("Distribución no soportada: " + tipoDistribucion);
+            }
         }
     }
 
@@ -460,453 +901,5 @@ public class SimulacionInventarioAutosGUI {
         }
 
         return ventasCoches[ventasCoches.length - 1];
-    }
-
-    private void mostrarResultadosGUI(List<ResultadoMes> resultados, int inicio, int fin) {
-        JFrame resultadosFrame = new JFrame("Resultados de Simulación");
-        resultadosFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        resultadosFrame.setSize(1400, 800); // Aumenté el ancho para acomodar más columnas
-        resultadosFrame.setLayout(new BorderLayout());
-        resultadosFrame.getContentPane().setBackground(COLOR_FONDO);
-
-        // Panel de título
-        JPanel titlePanel = new JPanel();
-        titlePanel.setBackground(COLOR_ENCABEZADO);
-        titlePanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
-        JLabel titleLabel = new JLabel("RESULTADOS DE LA SIMULACIÓN");
-        titleLabel.setFont(new Font("Lato", Font.BOLD, 18));
-        titleLabel.setForeground(Color.WHITE);
-        titlePanel.add(titleLabel);
-        resultadosFrame.add(titlePanel, BorderLayout.NORTH);
-
-        // Columnas de la tabla (actualizadas)
-        String[] columnNames = {
-                "Mes",
-                "Inventario Inicial",
-                "RND Ventas",
-                "Ventas",
-                "Ventas Concretadas",
-                "Stock Out",
-                "Pedido",
-                "Inventario Final",
-                "RND Entrega",
-                "Entrega",
-                "Costo Almacenaje",
-                "Costo Almacenaje ++",
-                "Costo Stock Out",
-                "Costo Stock Out ++",
-                "Costo Pedido",
-                "Costo Pedido ++",
-                "Costo Mes",
-                "Costo Total",
-                "Costo Total Promedio"
-        };
-
-        DefaultTableModel model = new DefaultTableModel(columnNames, 0) {
-            @Override
-            public Class<?> getColumnClass(int columnIndex) {
-                return columnIndex == 0 ? Integer.class : Object.class;
-            }
-        };
-
-        table = new JTable(model);
-        table.setFont(new Font("Lato", Font.PLAIN, 14)); // Reduje el tamaño de fuente para más columnas
-        table.setRowHeight(25); // Reduje la altura de fila
-        table.setGridColor(COLOR_BORDE);
-        table.setBackground(COLOR_TABLA_FONDO);
-        table.setSelectionBackground(new Color(200, 230, 255));
-        table.setSelectionForeground(Color.BLACK);
-        table.setShowGrid(true);
-        table.setIntercellSpacing(new Dimension(0, 0));
-
-        // Renderizadores
-        DefaultTableCellRenderer centerRenderer = new CenterRenderer();
-        DefaultTableCellRenderer rightRenderer = new DefaultTableCellRenderer();
-        rightRenderer.setHorizontalAlignment(JLabel.CENTER);
-
-        // Aplicar renderizadores
-        for (int i = 0; i < table.getColumnCount(); i++) {
-            if (i == 0 || i == 2 || i == 8 || i == 16) { // Le añado colorcito
-                table.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
-            } else { // Columnas numéricas alineadas a la derecha
-                table.getColumnModel().getColumn(i).setCellRenderer(rightRenderer);
-            }
-        }
-
-        // Configurar encabezados
-        JTableHeader header = table.getTableHeader();
-        header.setBackground(COLOR_ENCABEZADO);
-        header.setForeground(Color.WHITE);
-        header.setFont(new Font("Segoe UI", Font.BOLD, 12));
-
-        DefaultTableCellRenderer headerRenderer = new DefaultTableCellRenderer();
-        headerRenderer.setHorizontalAlignment(JLabel.CENTER);
-        headerRenderer.setBackground(COLOR_ENCABEZADO);
-        headerRenderer.setForeground(Color.WHITE);
-
-        for (int i = 0; i < table.getColumnCount(); i++) {
-            table.getColumnModel().getColumn(i).setHeaderRenderer(headerRenderer);
-        }
-
-        // Configurar anchos de columnas
-        table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-        int[] columnWidths = {50, 115, 110, 60, 60, 70, 60, 120, 100, 60, 135, 140, 120, 130, 130, 130, 120, 120, 120};
-        for (int i = 0; i < columnWidths.length; i++) {
-            table.getColumnModel().getColumn(i).setPreferredWidth(columnWidths[i]);
-        }
-
-        JScrollPane scrollPane = new JScrollPane(table);
-        scrollPane.setBorder(BorderFactory.createLineBorder(COLOR_BORDE));
-
-        // Llenar la tabla con los datos
-        List<ResultadoMes> resultadosMostrar = new ArrayList<>();
-
-
-        for (int i = inicio - 1; i < fin; i++) {
-            if(i == resultados.size() - 1){
-                break;
-            }
-            resultadosMostrar.add(resultados.get(i));
-        }
-        resultadosMostrar.add(resultados.getLast());
-
-        for (ResultadoMes resultado : resultadosMostrar) {
-            Object[] rowData = {
-                    resultado.mes,
-                    resultado.inventarioInicial,
-                    String.format("%.4f", resultado.randomVentas),
-                    resultado.ventas,
-                    resultado.ventasReales,
-                    resultado.ventasPerdidas,
-                    resultado.pedidoPendiente,
-                    resultado.inventarioFinal,
-                    resultado.randomEntrega > 0 ? String.format("%.4f", resultado.randomEntrega) : "-",
-                    resultado.mesesRestantesEntrega > 0 ? resultado.mesesRestantesEntrega : "-",
-                    String.format("$%,.2f", resultado.costoAlmacenamiento),
-                    String.format("$%,.2f", resultado.costoTotalAlmacenamiento),
-                    String.format("$%,.2f", resultado.costoVentasPerdidas),
-                    String.format("$%,.2f", resultado.costoTotalVentasPerdidas),
-                    String.format("$%,.2f", resultado.costoPedido),
-                    String.format("$%,.2f", resultado.costoTotalPedidos),
-                    String.format("$%,.2f", resultado.costoMes),
-                    String.format("$%,.2f", resultado.costoTotal),
-                    String.format("$%,.2f", resultado.costoTotalPromedio)
-            };
-            model.addRow(rowData);
-        }
-
-        // Panel de métricas
-        metricsArea = new JTextArea();
-        metricsArea.setEditable(false);
-        metricsArea.setFont(new Font("Consolas", Font.PLAIN, 14));
-        metricsArea.setBackground(COLOR_METRICAS_FONDO);
-        metricsArea.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(COLOR_BORDE),
-                BorderFactory.createEmptyBorder(10, 10, 10, 10)));
-
-        // Generar métricas
-        generarMetricas(resultados);
-
-        // Dividir la ventana
-        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, scrollPane, new JScrollPane(metricsArea));
-        splitPane.setResizeWeight(0.7);
-        splitPane.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-
-        resultadosFrame.add(splitPane, BorderLayout.CENTER);
-        resultadosFrame.setLocationRelativeTo(frame);
-        resultadosFrame.setVisible(true);
-    }
-
-    private void generarMetricas(List<ResultadoMes> resultados) {
-        StringBuilder metricsBuilder = new StringBuilder();
-        metricsBuilder.append("MÉTRICAS DETALLADAS DE LA SIMULACIÓN\n");
-        metricsBuilder.append("====================================\n\n");
-
-        // 1. Métricas básicas
-        metricsBuilder.append("■ DATOS GENERALES\n");
-        metricsBuilder.append(String.format("  - Duración de la simulación: %,d meses\n", resultados.size()));
-        metricsBuilder.append(String.format("  - Stock inicial: %,d autos\n", resultados.get(0).inventarioInicial));
-        metricsBuilder.append(String.format("  - Punto de reorden configurado: %,d autos\n", puntoReorden));
-        metricsBuilder.append(String.format("  - Cantidad de pedido configurada: %,d autos\n", cantidadPedido));
-        metricsBuilder.append("\n");
-
-        // 2. Análisis de pedidos
-        long totalPedidos = resultados.stream().filter(r -> r.costoPedido > 0).count();
-        metricsBuilder.append("■ ANÁLISIS DE PEDIDOS\n");
-        metricsBuilder.append(String.format("  - Total de pedidos realizados: %,d\n", totalPedidos));
-        metricsBuilder.append(String.format("  - Costo total en pedidos: $%,.2f\n",
-                resultados.stream().mapToDouble(r -> r.costoPedido).sum()));
-        metricsBuilder.append(String.format("  - Costo promedio por pedido: $%,.2f\n",
-                totalPedidos > 0 ? resultados.stream().mapToDouble(r -> r.costoPedido).sum() / totalPedidos : 0));
-        metricsBuilder.append("\n");
-
-        // 3. Análisis detallado de costos
-        double costoTotal = resultados.get(resultados.size()-1).costoTotal;
-        double costoPromedioMensual = costoTotal / resultados.size();
-        double costoTotalAlmacenamiento = resultados.stream().mapToDouble(r -> r.costoAlmacenamiento).sum();
-        double costoPromedioAlmacenamiento = costoTotalAlmacenamiento / resultados.size();
-        double costoTotalVentasPerdidas = resultados.stream().mapToDouble(r -> r.costoVentasPerdidas).sum();
-
-        metricsBuilder.append("■ ANÁLISIS DE COSTOS\n");
-        metricsBuilder.append(String.format("  - Costo total acumulado: $%,.2f\n", costoTotal));
-        metricsBuilder.append(String.format("  - Costo promedio mensual: $%,.2f\n", costoPromedioMensual));
-        metricsBuilder.append("\n  Desglose de costos:\n");
-        metricsBuilder.append(String.format("  - Almacenamiento: $%,.2f (%.1f%% del total)\n",
-                costoTotalAlmacenamiento, (costoTotalAlmacenamiento * 100 / costoTotal)));
-        metricsBuilder.append(String.format("  - Ventas perdidas: $%,.2f (%.1f%% del total)\n",
-                costoTotalVentasPerdidas, (costoTotalVentasPerdidas * 100 / costoTotal)));
-        metricsBuilder.append(String.format("  - Pedidos: $%,.2f (%.1f%% del total)\n",
-                resultados.stream().mapToDouble(r -> r.costoPedido).sum(),
-                (resultados.stream().mapToDouble(r -> r.costoPedido).sum() * 100 / costoTotal)));
-        metricsBuilder.append("\n");
-
-        // 4. Análisis de ventas
-        int totalVentas = resultados.stream().mapToInt(r -> r.ventasReales).sum();
-        int totalVentasPerdidas = resultados.stream().mapToInt(r -> r.ventasPerdidas).sum();
-        double porcentajeVentasPerdidas = (double)totalVentasPerdidas * 100 / (totalVentas + totalVentasPerdidas);
-
-        metricsBuilder.append("■ ANÁLISIS DE VENTAS\n");
-        metricsBuilder.append(String.format("  - Total de autos vendidos: %,d\n", totalVentas));
-        metricsBuilder.append(String.format("  - Total de ventas perdidas: %,d (%.1f%% de oportunidades)\n",
-                totalVentasPerdidas, porcentajeVentasPerdidas));
-        metricsBuilder.append("\n");
-
-        // 5. Análisis de inventario
-        int maxInventario = resultados.stream().mapToInt(r -> r.inventarioInicial).max().orElse(0);
-        int minInventario = resultados.stream().mapToInt(r -> r.inventarioFinal).min().orElse(0);
-
-        metricsBuilder.append("■ ANÁLISIS DE INVENTARIO\n");
-        metricsBuilder.append(String.format("  - Máximo inventario: %,d autos\n", maxInventario));
-        metricsBuilder.append(String.format("  - Mínimo inventario: %,d autos\n", minInventario));
-        metricsBuilder.append("\n");
-
-        // Métricas de efectividad del punto de reorden
-        int mesesBajoReorden = (int) resultados.stream()
-                .filter(r -> r.inventarioFinal <= puntoReorden)
-                .count();
-        double efectividadReorden = (double) mesesBajoReorden / resultados.size() * 100;
-
-        metricsBuilder.append("■ EFECTIVIDAD DEL PUNTO DE REORDEN\n");
-        metricsBuilder.append(String.format("  - Veces que cayó bajo punto de reorden: %,d/%,d meses\n",
-                mesesBajoReorden, resultados.size()));
-        metricsBuilder.append(String.format("  - Porcentaje de efectividad: %.1f%%\n", efectividadReorden));
-
-        // Métricas de exceso de inventario
-        int limiteExceso = puntoReorden + cantidadPedido;
-        int mesesExcesoInventario = (int) resultados.stream()
-                .filter(r -> r.inventarioFinal > limiteExceso)
-                .count();
-        double porcentajeExceso = (double) mesesExcesoInventario / resultados.size() * 100;
-
-        metricsBuilder.append("\n■ ANÁLISIS DE EXCESO DE INVENTARIO\n");
-        metricsBuilder.append(String.format("  - Límite de exceso (Reorden + Cantidad Pedido): %,d autos\n", limiteExceso));
-        metricsBuilder.append(String.format("  - Meses con exceso: %,d (%.1f%% del tiempo)\n",
-                mesesExcesoInventario, porcentajeExceso));
-        metricsBuilder.append("  - [Valor alto indica sobrestock costoso]\n");
-
-        // Configurar el área de texto
-        metricsArea.setText(metricsBuilder.toString());
-
-        // Crear y mostrar gráficos comparativos
-        crearYMostrarGraficos(resultados);
-    }
-
-    private void crearYMostrarGraficos(List<ResultadoMes> resultados) {
-        // Crear un nuevo panel para los gráficos
-        JPanel chartsPanel = new JPanel(new GridLayout(1, 2));
-        chartsPanel.setBackground(COLOR_METRICAS_FONDO);
-
-        // Crear los gráficos
-        chartsPanel.add(new ChartPanel(createCostComparisonChart(resultados)));
-        chartsPanel.add(new ChartPanel(createCostDistributionChart(resultados)));
-
-        // Crear un nuevo panel principal
-        JPanel mainPanel = new JPanel(new BorderLayout());
-        mainPanel.add(new JScrollPane(metricsArea), BorderLayout.CENTER);
-        mainPanel.add(chartsPanel, BorderLayout.SOUTH);
-
-        // Mostrar en un nuevo diálogo
-        JDialog chartDialog = new JDialog();
-        chartDialog.setTitle("Gráficos de Resultados");
-        chartDialog.setContentPane(mainPanel);
-        chartDialog.pack();
-        chartDialog.setLocationRelativeTo(frame);
-        chartDialog.setVisible(true);
-
-        // Mostrar histograma de ventas por meses
-        HistogramaVentasAutos hva = new HistogramaVentasAutos();
-        List<Integer> listaVentas = new ArrayList<>();
-
-        for (ResultadoMes resultado : resultados) {
-            listaVentas.add(resultado.ventas);
-        }
-
-        hva.mostrarHistogramaVentas(listaVentas.size(), listaVentas);
-    }
-    private JFreeChart createCostComparisonChart(List<ResultadoMes> resultados) {
-        // Calcular promedios
-        double avgOrderCost = resultados.stream().mapToDouble(r -> r.costoPedido).average().orElse(0);
-        double avgStorageCost = resultados.stream().mapToDouble(r -> r.costoAlmacenamiento).average().orElse(0);
-        double avgStockOutCost = resultados.stream().mapToDouble(r -> r.costoVentasPerdidas).average().orElse(0);
-
-        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
-        dataset.addValue(avgOrderCost, "Costos", "Pedidos");
-        dataset.addValue(avgStorageCost, "Costos", "Almacenamiento");
-        dataset.addValue(avgStockOutCost, "Costos", "Ventas Perdidas");
-
-        JFreeChart chart = ChartFactory.createBarChart(
-                "Comparación de Costos Promedio Mensual",
-                "Tipo de Costo",
-                "Costo Promedio ($)",
-                dataset,
-                PlotOrientation.VERTICAL,
-                true, true, false);
-
-        // Personalización del gráfico
-        chart.setBackgroundPaint(COLOR_METRICAS_FONDO);
-        CategoryPlot plot = chart.getCategoryPlot();
-        plot.setBackgroundPaint(Color.WHITE);
-        plot.setRangeGridlinePaint(COLOR_BORDE);
-        plot.getRenderer().setSeriesPaint(0, new Color(74, 111, 165));
-        plot.getRangeAxis().setUpperMargin(0.05);
-
-        return chart;
-    }
-
-    private JFreeChart createCostDistributionChart(List<ResultadoMes> resultados) {
-        // Calcular totales
-        double totalAlmacenamiento = resultados.stream().mapToDouble(r -> r.costoAlmacenamiento).sum();
-        double totalVentasPerdidas = resultados.stream().mapToDouble(r -> r.costoVentasPerdidas).sum();
-        double totalPedidos = resultados.stream().mapToDouble(r -> r.costoPedido).sum();
-
-        DefaultPieDataset dataset = new DefaultPieDataset();
-        dataset.setValue("Almacenamiento", totalAlmacenamiento);
-        dataset.setValue("Ventas Perdidas", totalVentasPerdidas);
-        dataset.setValue("Pedidos", totalPedidos);
-
-        JFreeChart chart = ChartFactory.createPieChart(
-                "Distribución Porcentual de Costos",
-                dataset,
-                true, true, false);
-
-        // Personalización del gráfico
-        chart.setBackgroundPaint(COLOR_METRICAS_FONDO);
-        PiePlot plot = (PiePlot) chart.getPlot();
-        plot.setBackgroundPaint(Color.WHITE);
-        plot.setSectionPaint("Almacenamiento", new Color(205, 202, 0));
-        plot.setSectionPaint("Ventas Perdidas", new Color(220, 80, 80));
-        plot.setSectionPaint("Pedidos", new Color(181, 13, 223));
-        plot.setLabelGenerator(new StandardPieSectionLabelGenerator("{0}: {1} ({2})",
-                NumberFormat.getCurrencyInstance(), NumberFormat.getPercentInstance()));
-
-        return chart;
-    }
-
-    private static class CenterRenderer extends DefaultTableCellRenderer {
-        public CenterRenderer() {
-            setHorizontalAlignment(JLabel.CENTER);
-            setVerticalAlignment(JLabel.CENTER);
-            setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 5));
-        }
-
-        @Override
-        public Component getTableCellRendererComponent(JTable table, Object value,
-                                                       boolean isSelected, boolean hasFocus, int row, int column) {
-            super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-
-            if (!isSelected) {
-                setBackground(row % 2 == 0 ? COLOR_TABLA_FONDO : COLOR_TABLA_ALTERNADO);
-            }
-
-            if (value instanceof String && ((String)value).startsWith("-")) {
-                setForeground(Color.RED);
-            } else {
-                setForeground(Color.BLACK);
-            }
-
-            setFont(getFont().deriveFont(column == 0 ? Font.BOLD : Font.PLAIN));
-
-            return this;
-        }
-    }
-
-    private static class ResultadoMes {
-        int mes;
-        int inventarioInicial;
-        int inventarioFinal;
-        int ventas;
-        int ventasReales;
-        int ventasPerdidas;
-        int pedidoPendiente;
-        int mesesRestantesEntrega;
-        double costoAlmacenamiento;
-        double costoTotalAlmacenamiento;
-        double costoVentasPerdidas;
-        double costoTotalVentasPerdidas;
-        double costoPedido;
-        double costoTotalPedidos;
-        double costoMes;
-        double costoTotal;
-        double randomVentas;
-        double randomEntrega;
-        double costoTotalPromedio;
-
-        public ResultadoMes(int mes, int inventarioInicial, int inventarioFinal, int ventas, int ventasReales, int ventasPerdidas,
-                            int pedidoPendiente, int mesesRestantesEntrega,
-                            double costoAlmacenamiento, double costoTotalAlmacenamiento,
-                            double costoVentasPerdidas, double costoTotalVentasPerdidas,
-                            double costoPedido, double costoTotalPedidos,
-                            double costoMes, double costoTotal,
-                            double randomVentas, double randomEntrega, double costoTotalPromedio) {
-            this.mes = mes;
-            this.inventarioInicial = inventarioInicial;
-            this.inventarioFinal = inventarioFinal;
-            this.ventas = ventas;
-            this.ventasReales = ventasReales;
-            this.ventasPerdidas = ventasPerdidas;
-            this.pedidoPendiente = pedidoPendiente;
-            this.mesesRestantesEntrega = mesesRestantesEntrega;
-            this.costoAlmacenamiento = costoAlmacenamiento;
-            this.costoTotalAlmacenamiento = costoTotalAlmacenamiento;
-            this.costoVentasPerdidas = costoVentasPerdidas;
-            this.costoTotalVentasPerdidas = costoTotalVentasPerdidas;
-            this.costoPedido = costoPedido;
-            this.costoTotalPedidos = costoTotalPedidos;
-            this.costoMes = costoMes;
-            this.costoTotal = costoTotal;
-            this.randomVentas = randomVentas;
-            this.randomEntrega = randomEntrega;
-            this.costoTotalPromedio = costoTotalPromedio;
-        }
-    }
-
-    public class GeneradorDistribuciones {
-        public static int generarTiempoEntrega(String tipoDistribucion,double RND, double[] parametros) {
-            switch(tipoDistribucion.toUpperCase()) {
-                case "UNIFORME":
-                    if(parametros.length != 2) throw new IllegalArgumentException("Uniforme necesita 2 parámetros [A, B]");
-                    double[] uniforme = Uniform.generate(parametros[0], parametros[1], 1, RND);
-                    int comodin = (int) Math.round(uniforme[0]);
-                    return comodin;
-
-                case "NORMAL":
-                    if(parametros.length != 2) throw new IllegalArgumentException("Normal necesita 2 parámetros [media, desviación]");
-                    double[] normal = Normal.generate(parametros[0], parametros[1], 1);
-                    return (int) Math.max(1, Math.min(4, Math.ceil(normal[0])));
-
-                case "POISSON":
-                    if(parametros.length != 1) throw new IllegalArgumentException("Poisson necesita 1 parámetro [lambda]");
-                    double[] poisson = Poisson.generate(parametros[0], 1);
-                    return (int) Math.max(1, Math.min(4, Math.ceil(poisson[0])));
-
-                case "EXPONENCIAL":
-                    if(parametros.length != 1) throw new IllegalArgumentException("Exponencial necesita 1 parámetro [lambda]");
-                    double[] exponencial = Exponential.generate(parametros[0], 1);
-                    return (int) Math.max(1, Math.min(4, Math.ceil(exponencial[0])));
-
-                default:
-                    throw new IllegalArgumentException("Distribución no soportada: " + tipoDistribucion);
-            }
-        }
     }
 }
