@@ -574,14 +574,14 @@ public class SimulacionInventarioAutosGUI {
         metricsBuilder.append("■ DATOS GENERALES\n");
         metricsBuilder.append(String.format("  - Duración de la simulación: %,d meses\n", resultados.size()));
         metricsBuilder.append(String.format("  - Stock inicial: %,d autos\n", resultados.get(0).inventarioInicial));
+        metricsBuilder.append(String.format("  - Punto de reorden configurado: %,d autos\n", puntoReorden));
+        metricsBuilder.append(String.format("  - Cantidad de pedido configurada: %,d autos\n", cantidadPedido));
         metricsBuilder.append("\n");
 
         // 2. Análisis de pedidos
         long totalPedidos = resultados.stream().filter(r -> r.costoPedido > 0).count();
         metricsBuilder.append("■ ANÁLISIS DE PEDIDOS\n");
         metricsBuilder.append(String.format("  - Total de pedidos realizados: %,d\n", totalPedidos));
-        metricsBuilder.append(String.format("  - Frecuencia de pedidos: 1 cada %,d meses\n",
-                resultados.size() / Math.max(1, totalPedidos)));
         metricsBuilder.append(String.format("  - Costo total en pedidos: $%,.2f\n",
                 resultados.stream().mapToDouble(r -> r.costoPedido).sum()));
         metricsBuilder.append(String.format("  - Costo promedio por pedido: $%,.2f\n",
@@ -620,16 +620,37 @@ public class SimulacionInventarioAutosGUI {
         metricsBuilder.append("\n");
 
         // 5. Análisis de inventario
-        double inventarioPromedio = resultados.stream().mapToInt(r -> r.inventarioFinal).average().orElse(0);
-        int maxInventario = resultados.stream().mapToInt(r -> r.inventarioFinal).max().orElse(0);
+        int maxInventario = resultados.stream().mapToInt(r -> r.inventarioInicial).max().orElse(0);
         int minInventario = resultados.stream().mapToInt(r -> r.inventarioFinal).min().orElse(0);
 
         metricsBuilder.append("■ ANÁLISIS DE INVENTARIO\n");
-        metricsBuilder.append(String.format("  - Inventario promedio: %,.1f autos\n", inventarioPromedio));
         metricsBuilder.append(String.format("  - Máximo inventario: %,d autos\n", maxInventario));
         metricsBuilder.append(String.format("  - Mínimo inventario: %,d autos\n", minInventario));
-        metricsBuilder.append(String.format("  - Punto de reorden configurado: %,d autos\n", puntoReorden));
-        metricsBuilder.append(String.format("  - Cantidad de pedido configurada: %,d autos\n", cantidadPedido));
+        metricsBuilder.append("\n");
+
+        // Métricas de efectividad del punto de reorden
+        int mesesBajoReorden = (int) resultados.stream()
+                .filter(r -> r.inventarioFinal <= puntoReorden)
+                .count();
+        double efectividadReorden = (double) mesesBajoReorden / resultados.size() * 100;
+
+        metricsBuilder.append("■ EFECTIVIDAD DEL PUNTO DE REORDEN\n");
+        metricsBuilder.append(String.format("  - Veces que cayó bajo punto de reorden: %,d/%,d meses\n",
+                mesesBajoReorden, resultados.size()));
+        metricsBuilder.append(String.format("  - Porcentaje de efectividad: %.1f%%\n", efectividadReorden));
+
+        // Métricas de exceso de inventario
+        int limiteExceso = puntoReorden + cantidadPedido;
+        int mesesExcesoInventario = (int) resultados.stream()
+                .filter(r -> r.inventarioFinal > limiteExceso)
+                .count();
+        double porcentajeExceso = (double) mesesExcesoInventario / resultados.size() * 100;
+
+        metricsBuilder.append("\n■ ANÁLISIS DE EXCESO DE INVENTARIO\n");
+        metricsBuilder.append(String.format("  - Límite de exceso (Reorden + Cantidad Pedido): %,d autos\n", limiteExceso));
+        metricsBuilder.append(String.format("  - Meses con exceso: %,d (%.1f%% del tiempo)\n",
+                mesesExcesoInventario, porcentajeExceso));
+        metricsBuilder.append("  - [Valor alto indica sobrestock costoso]\n");
 
         // Configurar el área de texto
         metricsArea.setText(metricsBuilder.toString());
