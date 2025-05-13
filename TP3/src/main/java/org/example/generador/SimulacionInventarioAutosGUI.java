@@ -578,17 +578,11 @@ public class SimulacionInventarioAutosGUI {
         int totalVentas = resultados.stream().mapToInt(r -> r.ventasReales).sum();
         int totalVentasPerdidas = resultados.stream().mapToInt(r -> r.ventasPerdidas).sum();
         double porcentajeVentasPerdidas = (double)totalVentasPerdidas * 100 / (totalVentas + totalVentasPerdidas);
-        double gananciaPorAuto = 25000; // Valor configurable
-        double gananciaTotal = totalVentas * gananciaPorAuto;
-        double gananciaNeta = gananciaTotal - costoTotal;
 
         metricsBuilder.append("■ ANÁLISIS DE VENTAS\n");
         metricsBuilder.append(String.format("  - Total de autos vendidos: %,d\n", totalVentas));
         metricsBuilder.append(String.format("  - Total de ventas perdidas: %,d (%.1f%% de oportunidades)\n",
                 totalVentasPerdidas, porcentajeVentasPerdidas));
-        metricsBuilder.append(String.format("  - Ganancia bruta por ventas: $%,.2f\n", gananciaTotal));
-        metricsBuilder.append(String.format("  - Ganancia neta (ventas - costos): $%,.2f\n", gananciaNeta));
-        metricsBuilder.append(String.format("  - Rentabilidad: %.1f%%\n", (gananciaNeta * 100 / gananciaTotal)));
         metricsBuilder.append("\n");
 
         // 5. Análisis de inventario
@@ -682,14 +676,15 @@ public class SimulacionInventarioAutosGUI {
         chart.setBackgroundPaint(COLOR_METRICAS_FONDO);
         PiePlot plot = (PiePlot) chart.getPlot();
         plot.setBackgroundPaint(Color.WHITE);
-        plot.setSectionPaint("Almacenamiento", new Color(74, 111, 165));
+        plot.setSectionPaint("Almacenamiento", new Color(205, 202, 0));
         plot.setSectionPaint("Ventas Perdidas", new Color(220, 80, 80));
-        plot.setSectionPaint("Pedidos", new Color(80, 180, 80));
+        plot.setSectionPaint("Pedidos", new Color(181, 13, 223));
         plot.setLabelGenerator(new StandardPieSectionLabelGenerator("{0}: {1} ({2})",
                 NumberFormat.getCurrencyInstance(), NumberFormat.getPercentInstance()));
 
         return chart;
     }
+
     private static class CenterRenderer extends DefaultTableCellRenderer {
         public CenterRenderer() {
             setHorizontalAlignment(JLabel.CENTER);
