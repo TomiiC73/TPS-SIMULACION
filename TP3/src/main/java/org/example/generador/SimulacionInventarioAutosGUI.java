@@ -5,17 +5,25 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import java.awt.*;
+import java.io.File;
 import java.io.FileOutputStream;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
 import org.apache.poi.sl.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.example.Distribuciones.*;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
+import org.jfree.chart.labels.StandardPieSectionLabelGenerator;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.plot.PiePlot;
 import org.jfree.chart.plot.PlotOrientation;
@@ -523,176 +531,165 @@ public class SimulacionInventarioAutosGUI {
         resultadosFrame.setVisible(true);
     }
 
-//    private void generarMetricas(List<ResultadoMes> resultados) {
-//        // Panel principal que contendrá todo
-//        JPanel panelPrincipal = new JPanel(new BorderLayout());
-//        panelPrincipal.setBackground(COLOR_METRICAS_FONDO);
-//
-//        // 1. Panel para las métricas numéricas (parte superior)
-//        JPanel panelMetricas = new JPanel();
-//        panelMetricas.setLayout(new BoxLayout(panelMetricas, BoxLayout.Y_AXIS));
-//        panelMetricas.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-//
-//        // Cálculos de métricas
-//        double costoTotal = resultados.get(resultados.size()-1).costoTotal;
-//        double costoPromedio = costoTotal / resultados.size();
-//        int ventasTotales = resultados.stream().mapToInt(r -> r.ventasReales).sum();
-//        int ventasPerdidasTotales = resultados.stream().mapToInt(r -> r.ventasPerdidas).sum();
-//
-//        // Crear texto formateado
-//        JTextArea textoMetricas = new JTextArea();
-//        textoMetricas.setEditable(false);
-//        textoMetricas.setFont(new Font("Consolas", Font.PLAIN, 14));
-//        textoMetricas.setText(String.format(
-//                "╔════════════════════════════════════════════╗\n" +
-//                        "║          RESUMEN DE LA SIMULACIÓN          ║\n" +
-//                        "╠══════════════════════════╦═════════════════╣\n" +
-//                        "║ Costo Total              ║ $%,14.2f ║\n" +
-//                        "║ Costo Promedio Mensual   ║ $%,14.2f ║\n" +
-//                        "╠══════════════════════════╬═════════════════╣\n" +
-//                        "║ Ventas Totales           ║ %,15d ║\n" +
-//                        "║ Ventas Perdidas          ║ %,15d ║\n" +
-//                        "╚══════════════════════════╩═════════════════╝",
-//                costoTotal, costoPromedio, ventasTotales, ventasPerdidasTotales
-//        ));
-//
-//        panelMetricas.add(new JScrollPane(textoMetricas));
-//        panelPrincipal.add(panelMetricas, BorderLayout.NORTH);
-//
-//        // 2. Gráfico de costos mensuales (parte central)
-//        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
-//
-//        // Agregar datos para cada mes
-//        for (ResultadoMes mes : resultados) {
-//            String mesStr = "Mes " + mes.mes;
-//            dataset.addValue(mes.costoAlmacenamiento, "Almacenamiento", mesStr);
-//            dataset.addValue(mes.costoVentasPerdidas, "Ventas Perdidas", mesStr);
-//            dataset.addValue(mes.costoPedido, "Pedidos", mesStr);
-//        }
-//
-//        // Crear el gráfico de barras
-//        JFreeChart chart = ChartFactory.createBarChart(
-//                "Costos Mensuales por Concepto",  // Título
-//                "Mes",                            // Eje X
-//                "Costo ($)",                      // Eje Y
-//                dataset,                          // Datos
-//                PlotOrientation.VERTICAL,         // Orientación
-//                true,                            // Incluir leyenda
-//                true,                            // Tooltips
-//                false                            // URLs
-//        );
-//
-//        // Personalizar colores
-//        CategoryPlot plot = chart.getCategoryPlot();
-//        plot.getRenderer().setSeriesPaint(0, new Color(74, 111, 165)); // Azul
-//        plot.getRenderer().setSeriesPaint(1, new Color(220, 53, 69));  // Rojo
-//        plot.getRenderer().setSeriesPaint(2, new Color(40, 167, 69));  // Verde
-//
-//        // Configurar el panel del gráfico
-//        ChartPanel chartPanel = new ChartPanel(chart);
-//        chartPanel.setPreferredSize(new Dimension(700, 400));
-//        chartPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-//
-//        panelPrincipal.add(chartPanel, BorderLayout.CENTER);
-//
-//        // 3. Actualizar el área de métricas
-//        metricsArea.removeAll();
-//        metricsArea.setLayout(new BorderLayout());
-//        metricsArea.add(panelPrincipal, BorderLayout.CENTER);
-//        metricsArea.revalidate();
-//        metricsArea.repaint();
-//
-//        // Botón para mostrar gráfico en ventana emergente
-//        JButton btnGrafico = new JButton("Ver Gráfico de Costos Completo");
-//        btnGrafico.setBackground(COLOR_BOTON);
-//        btnGrafico.setForeground(COLOR_TEXTO_BOTON);
-//        btnGrafico.addActionListener(e -> mostrarGraficoEnVentana(resultados));
-//
-//        JPanel panelBoton = new JPanel();
-//        panelBoton.add(btnGrafico);
-//        panelPrincipal.add(panelBoton, BorderLayout.SOUTH); // Agrega el botón debajo del gráfico pequeño
-//    }
-
     private void generarMetricas(List<ResultadoMes> resultados) {
-        // 1. Crear panel principal con BorderLayout
-        JPanel panelPrincipal = new JPanel(new BorderLayout());
-        panelPrincipal.setBackground(COLOR_METRICAS_FONDO);
+        StringBuilder metricsBuilder = new StringBuilder();
+        metricsBuilder.append("MÉTRICAS DETALLADAS DE LA SIMULACIÓN\n");
+        metricsBuilder.append("====================================\n\n");
 
-        // 2. Panel para métricas numéricas (parte superior)
-        JTextArea textoMetricas = new JTextArea(generarTextoMetricas(resultados));
-        textoMetricas.setEditable(false);
-        textoMetricas.setFont(new Font("Consolas", Font.PLAIN, 14));
-        textoMetricas.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        // 1. Métricas básicas
+        metricsBuilder.append("■ DATOS GENERALES\n");
+        metricsBuilder.append(String.format("  - Duración de la simulación: %,d meses\n", resultados.size()));
+        metricsBuilder.append(String.format("  - Stock inicial: %,d autos\n", resultados.get(0).inventarioInicial));
+        metricsBuilder.append("\n");
 
-        // 3. Panel para el botón (parte inferior)
-        JButton btnGrafico = new JButton("Ver Gráfico Completo de Costos");
-        btnGrafico.setBackground(COLOR_BOTON);
-        btnGrafico.setForeground(COLOR_TEXTO_BOTON);
-        btnGrafico.addActionListener(e -> mostrarGraficoEnVentana(resultados));
+        // 2. Análisis de pedidos
+        long totalPedidos = resultados.stream().filter(r -> r.costoPedido > 0).count();
+        metricsBuilder.append("■ ANÁLISIS DE PEDIDOS\n");
+        metricsBuilder.append(String.format("  - Total de pedidos realizados: %,d\n", totalPedidos));
+        metricsBuilder.append(String.format("  - Frecuencia de pedidos: 1 cada %,d meses\n",
+                resultados.size() / Math.max(1, totalPedidos)));
+        metricsBuilder.append(String.format("  - Costo total en pedidos: $%,.2f\n",
+                resultados.stream().mapToDouble(r -> r.costoPedido).sum()));
+        metricsBuilder.append(String.format("  - Costo promedio por pedido: $%,.2f\n",
+                totalPedidos > 0 ? resultados.stream().mapToDouble(r -> r.costoPedido).sum() / totalPedidos : 0));
+        metricsBuilder.append("\n");
 
-        JPanel panelBoton = new JPanel();
-        panelBoton.setBackground(COLOR_METRICAS_FONDO);
-        panelBoton.add(btnGrafico);
-
-        // 4. Organizar componentes
-        panelPrincipal.add(new JScrollPane(textoMetricas), BorderLayout.CENTER);
-        panelPrincipal.add(panelBoton, BorderLayout.SOUTH);
-
-        // 5. Actualizar el área de métricas
-        metricsArea.removeAll();
-        metricsArea.setLayout(new BorderLayout());
-        metricsArea.add(panelPrincipal, BorderLayout.CENTER);
-        metricsArea.revalidate();
-        metricsArea.repaint();
-    }
-
-    // Metodo auxiliar para generar el texto de métricas
-    private String generarTextoMetricas(List<ResultadoMes> resultados) {
+        // 3. Análisis detallado de costos
         double costoTotal = resultados.get(resultados.size()-1).costoTotal;
-        double costoPromedio = costoTotal / resultados.size();
-        int ventasTotales = resultados.stream().mapToInt(r -> r.ventasReales).sum();
-        int ventasPerdidasTotales = resultados.stream().mapToInt(r -> r.ventasPerdidas).sum();
+        double costoPromedioMensual = costoTotal / resultados.size();
+        double costoTotalAlmacenamiento = resultados.stream().mapToDouble(r -> r.costoAlmacenamiento).sum();
+        double costoPromedioAlmacenamiento = costoTotalAlmacenamiento / resultados.size();
+        double costoTotalVentasPerdidas = resultados.stream().mapToDouble(r -> r.costoVentasPerdidas).sum();
 
-        return String.format(
-                "╔════════════════════════════════════════════╗\n" +
-                        "║          RESUMEN DE LA SIMULACIÓN          ║\n" +
-                        "╠══════════════════════════╦═════════════════╣\n" +
-                        "║ Costo Total              ║ $%,14.2f ║\n" +
-                        "║ Costo Promedio Mensual   ║ $%,14.2f ║\n" +
-                        "╠══════════════════════════╬═════════════════╣\n" +
-                        "║ Ventas Totales           ║ %,15d ║\n" +
-                        "║ Ventas Perdidas          ║ %,15d ║\n" +
-                        "╚══════════════════════════╩═════════════════╝",
-                costoTotal, costoPromedio, ventasTotales, ventasPerdidasTotales
-        );
+        metricsBuilder.append("■ ANÁLISIS DE COSTOS\n");
+        metricsBuilder.append(String.format("  - Costo total acumulado: $%,.2f\n", costoTotal));
+        metricsBuilder.append(String.format("  - Costo promedio mensual: $%,.2f\n", costoPromedioMensual));
+        metricsBuilder.append("\n  Desglose de costos:\n");
+        metricsBuilder.append(String.format("  - Almacenamiento: $%,.2f (%.1f%% del total)\n",
+                costoTotalAlmacenamiento, (costoTotalAlmacenamiento * 100 / costoTotal)));
+        metricsBuilder.append(String.format("  - Ventas perdidas: $%,.2f (%.1f%% del total)\n",
+                costoTotalVentasPerdidas, (costoTotalVentasPerdidas * 100 / costoTotal)));
+        metricsBuilder.append(String.format("  - Pedidos: $%,.2f (%.1f%% del total)\n",
+                resultados.stream().mapToDouble(r -> r.costoPedido).sum(),
+                (resultados.stream().mapToDouble(r -> r.costoPedido).sum() * 100 / costoTotal)));
+        metricsBuilder.append("\n");
+
+        // 4. Análisis de ventas
+        int totalVentas = resultados.stream().mapToInt(r -> r.ventasReales).sum();
+        int totalVentasPerdidas = resultados.stream().mapToInt(r -> r.ventasPerdidas).sum();
+        double porcentajeVentasPerdidas = (double)totalVentasPerdidas * 100 / (totalVentas + totalVentasPerdidas);
+        double gananciaPorAuto = 25000; // Valor configurable
+        double gananciaTotal = totalVentas * gananciaPorAuto;
+        double gananciaNeta = gananciaTotal - costoTotal;
+
+        metricsBuilder.append("■ ANÁLISIS DE VENTAS\n");
+        metricsBuilder.append(String.format("  - Total de autos vendidos: %,d\n", totalVentas));
+        metricsBuilder.append(String.format("  - Total de ventas perdidas: %,d (%.1f%% de oportunidades)\n",
+                totalVentasPerdidas, porcentajeVentasPerdidas));
+        metricsBuilder.append(String.format("  - Ganancia bruta por ventas: $%,.2f\n", gananciaTotal));
+        metricsBuilder.append(String.format("  - Ganancia neta (ventas - costos): $%,.2f\n", gananciaNeta));
+        metricsBuilder.append(String.format("  - Rentabilidad: %.1f%%\n", (gananciaNeta * 100 / gananciaTotal)));
+        metricsBuilder.append("\n");
+
+        // 5. Análisis de inventario
+        double inventarioPromedio = resultados.stream().mapToInt(r -> r.inventarioFinal).average().orElse(0);
+        int maxInventario = resultados.stream().mapToInt(r -> r.inventarioFinal).max().orElse(0);
+        int minInventario = resultados.stream().mapToInt(r -> r.inventarioFinal).min().orElse(0);
+
+        metricsBuilder.append("■ ANÁLISIS DE INVENTARIO\n");
+        metricsBuilder.append(String.format("  - Inventario promedio: %,.1f autos\n", inventarioPromedio));
+        metricsBuilder.append(String.format("  - Máximo inventario: %,d autos\n", maxInventario));
+        metricsBuilder.append(String.format("  - Mínimo inventario: %,d autos\n", minInventario));
+        metricsBuilder.append(String.format("  - Punto de reorden configurado: %,d autos\n", puntoReorden));
+        metricsBuilder.append(String.format("  - Cantidad de pedido configurada: %,d autos\n", cantidadPedido));
+
+        // Configurar el área de texto
+        metricsArea.setText(metricsBuilder.toString());
+
+        // Crear y mostrar gráficos comparativos
+        crearYMostrarGraficos(resultados);
     }
-    
-    private void mostrarGraficoEnVentana(List<ResultadoMes> resultados) {
+
+    private void crearYMostrarGraficos(List<ResultadoMes> resultados) {
+        // Crear un nuevo panel para los gráficos
+        JPanel chartsPanel = new JPanel(new GridLayout(1, 2));
+        chartsPanel.setBackground(COLOR_METRICAS_FONDO);
+
+        // Crear los gráficos
+        chartsPanel.add(new ChartPanel(createCostComparisonChart(resultados)));
+        chartsPanel.add(new ChartPanel(createCostDistributionChart(resultados)));
+
+        // Crear un nuevo panel principal
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.add(new JScrollPane(metricsArea), BorderLayout.CENTER);
+        mainPanel.add(chartsPanel, BorderLayout.SOUTH);
+
+        // Mostrar en un nuevo diálogo
+        JDialog chartDialog = new JDialog();
+        chartDialog.setTitle("Gráficos de Resultados");
+        chartDialog.setContentPane(mainPanel);
+        chartDialog.pack();
+        chartDialog.setLocationRelativeTo(frame);
+        chartDialog.setVisible(true);
+    }
+    private JFreeChart createCostComparisonChart(List<ResultadoMes> resultados) {
+        // Calcular promedios
+        double avgOrderCost = resultados.stream().mapToDouble(r -> r.costoPedido).average().orElse(0);
+        double avgStorageCost = resultados.stream().mapToDouble(r -> r.costoAlmacenamiento).average().orElse(0);
+        double avgStockOutCost = resultados.stream().mapToDouble(r -> r.costoVentasPerdidas).average().orElse(0);
+
         DefaultCategoryDataset dataset = new DefaultCategoryDataset();
-        for (ResultadoMes mes : resultados) {
-            dataset.addValue(mes.costoAlmacenamiento, "Almacenamiento", "Mes " + mes.mes);
-            dataset.addValue(mes.ventasReales, "Ventas", "Mes " + mes.mes);
-            dataset.addValue(mes.costoVentasPerdidas, "Ventas Perdidas", "Mes " + mes.mes);
-            dataset.addValue(mes.costoPedido, "Pedidos", "Mes " + mes.mes);
-        }
+        dataset.addValue(avgOrderCost, "Costos", "Pedidos");
+        dataset.addValue(avgStorageCost, "Costos", "Almacenamiento");
+        dataset.addValue(avgStockOutCost, "Costos", "Ventas Perdidas");
 
+        JFreeChart chart = ChartFactory.createBarChart(
+                "Comparación de Costos Promedio Mensual",
+                "Tipo de Costo",
+                "Costo Promedio ($)",
+                dataset,
+                PlotOrientation.VERTICAL,
+                true, true, false);
 
-        
-        JFreeChart chart = ChartFactory.createLineChart(
-                "Costos Mensuales", "Mes", "Costo ($)", dataset,
-                PlotOrientation.VERTICAL, true, true, false
-        );
+        // Personalización del gráfico
+        chart.setBackgroundPaint(COLOR_METRICAS_FONDO);
+        CategoryPlot plot = chart.getCategoryPlot();
+        plot.setBackgroundPaint(Color.WHITE);
+        plot.setRangeGridlinePaint(COLOR_BORDE);
+        plot.getRenderer().setSeriesPaint(0, new Color(74, 111, 165));
+        plot.getRangeAxis().setUpperMargin(0.05);
 
-        JFrame frameGrafico = new JFrame("Análisis de Costos");
-        frameGrafico.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        frameGrafico.add(new ChartPanel(chart) {{
-            setPreferredSize(new Dimension(800, 600));
-        }});
-        frameGrafico.pack();
-        frameGrafico.setLocationRelativeTo(null);
-        frameGrafico.setVisible(true);
+        return chart;
     }
 
+    private JFreeChart createCostDistributionChart(List<ResultadoMes> resultados) {
+        // Calcular totales
+        double totalAlmacenamiento = resultados.stream().mapToDouble(r -> r.costoAlmacenamiento).sum();
+        double totalVentasPerdidas = resultados.stream().mapToDouble(r -> r.costoVentasPerdidas).sum();
+        double totalPedidos = resultados.stream().mapToDouble(r -> r.costoPedido).sum();
+
+        DefaultPieDataset dataset = new DefaultPieDataset();
+        dataset.setValue("Almacenamiento", totalAlmacenamiento);
+        dataset.setValue("Ventas Perdidas", totalVentasPerdidas);
+        dataset.setValue("Pedidos", totalPedidos);
+
+        JFreeChart chart = ChartFactory.createPieChart(
+                "Distribución Porcentual de Costos",
+                dataset,
+                true, true, false);
+
+        // Personalización del gráfico
+        chart.setBackgroundPaint(COLOR_METRICAS_FONDO);
+        PiePlot plot = (PiePlot) chart.getPlot();
+        plot.setBackgroundPaint(Color.WHITE);
+        plot.setSectionPaint("Almacenamiento", new Color(74, 111, 165));
+        plot.setSectionPaint("Ventas Perdidas", new Color(220, 80, 80));
+        plot.setSectionPaint("Pedidos", new Color(80, 180, 80));
+        plot.setLabelGenerator(new StandardPieSectionLabelGenerator("{0}: {1} ({2})",
+                NumberFormat.getCurrencyInstance(), NumberFormat.getPercentInstance()));
+
+        return chart;
+    }
     private static class CenterRenderer extends DefaultTableCellRenderer {
         public CenterRenderer() {
             setHorizontalAlignment(JLabel.CENTER);
