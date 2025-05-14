@@ -5,7 +5,7 @@ import java.util.Random;
 public class Exponential {
 
     // Metodo para generar n valores aleatorios con distribucion exponencial
-    public static double[] generate(double lambda, int n, double RND) {
+    public static double[] generate(double media, int n, double RND) {
 
         // Si el numero de valores a generar es mayor a 50000, lanza una excepcion
         if (n > 50000) {
@@ -13,7 +13,7 @@ public class Exponential {
         }
 
         // Si el valor de lambda es menor o igual a 0, lanza una excepcion
-        if (lambda <= 0) {
+        if (media <= 0) {
             throw new IllegalArgumentException("El valor de lambda debe ser mayor a 0.");
         }
 
@@ -22,7 +22,7 @@ public class Exponential {
 
         // Bucle para generar n valores
         for (int i = 0; i < n; i++) {
-            double valor = - (1.0 / lambda) * Math.log(1 - RND);  // Calcula el valor de la distribucion exponencial usando la formula
+            double valor = - (media) * Math.log(1 - RND);  // Calcula el valor de la distribucion exponencial usando la formula
             valores[i] = valor;  // Asigna el valor calculado al arreglo
         }
 

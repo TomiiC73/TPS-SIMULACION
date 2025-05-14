@@ -46,6 +46,8 @@ public class SimulacionInventarioAutosGUI {
     private int[] demoraProveedor;
     private double[] probabilidadEntrega;
     private double[] parametrosDistribucion;
+    private double[] rndsParaNormal = {-1,-1};
+    private double[] rndsConDistribucionNormal = {-1,-1};
 
 
     private Random random = new Random();
@@ -251,9 +253,9 @@ public class SimulacionInventarioAutosGUI {
                 } else if("Normal".equals(seleccion)) {
                     txtParametros.setText("Media,DesviacionEstandar");
                 } else if("Exponencial".equals(seleccion)) {
-                    txtParametros.setText("Lambda=1/Media");
+                    txtParametros.setText("Media=1/Lambda");
                 } else {
-                    txtParametros.setText("Lambda=Media");
+                    txtParametros.setText("Media=Lambda");
                 }
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
@@ -640,6 +642,10 @@ public class SimulacionInventarioAutosGUI {
 
         // Crear y mostrar gráficos comparativos
         //crearYMostrarGraficos(resultados);
+        rndsConDistribucionNormal[0] = -1;
+        rndsConDistribucionNormal[1] = -1;
+        rndsParaNormal[0] = -1;
+        rndsParaNormal[1] = -1;
     }
 
     private void crearYMostrarGraficosCostosPromedios(List<ResultadoMes> resultados) {
@@ -815,76 +821,84 @@ public class SimulacionInventarioAutosGUI {
         //public int getPedidoPendiente
     }
 
-    public class GeneradorDistribuciones {
+
         // Calcular parametros en caso de carga manual de datos
-        public static double[] calcularParametros(double[] probabilidadesDemora, int[] demoraProveedor, String tipoDistribucion) {
-            double[] parametros = {0,0};
-            double media = 0;
-            for(int i = 0; i < probabilidadesDemora.length - 1 ; i++){
-                media += probabilidadesDemora[i] * demoraProveedor[i];
-            }
-            double desviacionEstandar = 0;
-
-                switch (tipoDistribucion.toUpperCase()){
-                    case "UNIFORME":
-                        int A = Arrays.stream(demoraProveedor).min().getAsInt();
-                        int B = Arrays.stream(demoraProveedor).max().getAsInt();
-                        parametros[0] = A;
-                        parametros[1] = B;
-                        return parametros;
-                    case "NORMAL":
-                        double varianza = 0;
-                        for(int i = 0; i < probabilidadesDemora.length - 1 ; i++){
-                            varianza += probabilidadesDemora[i] * Math.pow(demoraProveedor[i] - media,2);
-                        }
-                        desviacionEstandar = Math.sqrt(varianza);
-                        parametros[0] = media;
-                        parametros[1] = desviacionEstandar;
-                        return parametros;
-                    case "EXPONENCIAL":
-                        double lambda = 1 / media;
-                        parametros[0] = lambda;
-                        return parametros;
-                    default:
-                        parametros[0] = media;
-                        return parametros;
-                }
-            //}
-
+    public static double[] calcularParametros(double[] probabilidadesDemora, int[] demoraProveedor, String tipoDistribucion) {
+        double[] parametros = {0,0};
+        double media = 0;
+        for(int i = 0; i < probabilidadesDemora.length - 1 ; i++){
+            media += probabilidadesDemora[i] * demoraProveedor[i];
         }
+        double desviacionEstandar = 0;
 
-        public static int generarTiempoEntrega(String tipoDistribucion, double RND, double[] parametros) {
-            switch (tipoDistribucion.toUpperCase()) {
+            switch (tipoDistribucion.toUpperCase()){
                 case "UNIFORME":
-                    if (parametros.length != 2)
-                        throw new IllegalArgumentException("Uniforme necesita 2 parámetros [A, B]");
-                    double[] uniforme = Uniform.generate(parametros[0], parametros[1], 1, RND);
-                    int comodin = (int) Math.round(uniforme[0]);
-                    return comodin;
-
+                    int A = Arrays.stream(demoraProveedor).min().getAsInt();
+                    int B = Arrays.stream(demoraProveedor).max().getAsInt();
+                    parametros[0] = A;
+                    parametros[1] = B;
+                    return parametros;
                 case "NORMAL":
-                    if (parametros.length != 2)
-                        throw new IllegalArgumentException("Normal necesita 2 parámetros [media, desviación]");
-                    double[] normal = Normal.generate(parametros[0], parametros[1], 1);
-                    return (int) Math.max(1, Math.min(4, Math.ceil(normal[0])));
-
-                case "POISSON":
-                    /*if (parametros.length != 1)
-                        throw new IllegalArgumentException("Poisson necesita 1 parámetro [lambda]");*/
-                    double[] poisson = Poisson.generate(parametros[0], 1);
-                    return (int) Math.max(1, Math.min(4, Math.ceil(poisson[0])));
-
-                case "EXPONENCIAL":
-                    /*if (parametros.length != 1)
-                        throw new IllegalArgumentException("Exponencial necesita 1 parámetro [lambda]");*/
-                    double[] exponencial = Exponential.generate(parametros[0], 1, RND);
-                    return (int) Math.max(1, Math.min(4, Math.ceil(exponencial[0])));
-
+                    double varianza = 0;
+                    for(int i = 0; i < probabilidadesDemora.length - 1 ; i++){
+                        varianza += probabilidadesDemora[i] * Math.pow(demoraProveedor[i] - media,2);
+                    }
+                    desviacionEstandar = Math.sqrt(varianza);
+                    parametros[0] = media;
+                    parametros[1] = desviacionEstandar;
+                    return parametros;
                 default:
-                    throw new IllegalArgumentException("Distribución no soportada: " + tipoDistribucion);
+                    parametros[0] = media;
+                    return parametros;
             }
+        //}
+
+    }
+
+    public int generarTiempoEntrega(String tipoDistribucion, double RND, double[] parametros) {
+        switch (tipoDistribucion.toUpperCase()) {
+            case "UNIFORME":
+                if (parametros.length != 2)
+                    throw new IllegalArgumentException("Uniforme necesita 2 parámetros [A, B]");
+                double[] uniforme = Uniform.generate(parametros[0], parametros[1], 1, RND);
+                int comodin = (int) Math.round(uniforme[0]);
+                return comodin;
+
+            case "NORMAL":
+                System.out.println("Holaaaaa");
+                if (parametros.length != 2)
+                    throw new IllegalArgumentException("Normal necesita 2 parámetros [media, desviación]");
+                if(rndsConDistribucionNormal[0] == -1 && rndsConDistribucionNormal[1] == -1){
+                    System.out.println("Hola");
+                    rndsConDistribucionNormal = Normal.generate(parametros[0], parametros[1], 2, rndsParaNormal[0], rndsParaNormal[1]);
+                }
+                System.out.println(rndsParaNormal[0] + " " + rndsParaNormal[1] + " - " + rndsConDistribucionNormal[0] + " " + rndsConDistribucionNormal[1]);
+                int demoraProveedor = (int) Math.round(rndsConDistribucionNormal[0]);
+                rndsParaNormal[0] = -1;
+                rndsConDistribucionNormal[0] = -1;
+                System.out.println(rndsParaNormal[0] + " " + rndsParaNormal[1] + " - " + rndsConDistribucionNormal[0] + " " + rndsConDistribucionNormal[1]);
+                return demoraProveedor;
+
+            case "POISSON":
+                /*if (parametros.length != 1)
+                    throw new IllegalArgumentException("Poisson necesita 1 parámetro [lambda]");*/
+                System.out.println(parametros[0]);
+                double[] poisson = Poisson.generate(parametros[0], 1);
+                return (int) Math.round(poisson[0]);
+
+            case "EXPONENCIAL":
+                /*if (parametros.length != 1)
+                    throw new IllegalArgumentException("Exponencial necesita 1 parámetro [lambda]");*/
+                System.out.println(parametros[0]);
+                double[] exponencial = Exponential.generate(parametros[0], 1, RND);
+
+                return (int) Math.round(exponencial[0]);
+
+            default:
+                throw new IllegalArgumentException("Distribución no soportada: " + tipoDistribucion);
         }
     }
+
 
     public void ejecutarSimulacion(int mesesSimular, int filaInicioMostrar, int filaFinMostrar, int stockInicial) {
         List<ResultadoMes> resultados = new ArrayList<>();
@@ -899,7 +913,7 @@ public class SimulacionInventarioAutosGUI {
 
         if(tipoCarga.equals("Manual")){
             System.out.println(parametrosDistribucion);
-            parametrosDistribucion = GeneradorDistribuciones.calcularParametros(probabilidadEntrega, demoraProveedor, distribucionEntrega);
+            parametrosDistribucion = calcularParametros(probabilidadEntrega, demoraProveedor, distribucionEntrega);
             System.out.println(parametrosDistribucion[0]);
             System.out.println(parametrosDistribucion[1]);
         }
@@ -941,10 +955,23 @@ public class SimulacionInventarioAutosGUI {
                 costoPed = this.costoPedido;
                 pedidoPendiente = this.cantidadPedido;
 
+                if(distribucionEntrega.equalsIgnoreCase("Normal")){
+                    if(rndsConDistribucionNormal[0] == -1 && rndsConDistribucionNormal[1] == -1){
+                        rndsParaNormal[0] = random.nextDouble();
+                        rndsParaNormal[1] = random.nextDouble();
+                        randomEntrega = rndsParaNormal[0];
+                    } else{
+                        rndsParaNormal[0] = rndsParaNormal[1];
+                        rndsParaNormal[1] = -1;
+                        rndsConDistribucionNormal[0] = rndsConDistribucionNormal[1];
+                        rndsConDistribucionNormal[1] = -1;
+                        randomEntrega = rndsParaNormal[0];
+                    }
+                } else {
+                    randomEntrega = random.nextDouble();
+                }
 
-
-                randomEntrega = random.nextDouble();
-                mesesRestantesEntrega = GeneradorDistribuciones.generarTiempoEntrega(
+                mesesRestantesEntrega = generarTiempoEntrega(
                         distribucionEntrega,
                         randomEntrega,
                         parametrosDistribucion
