@@ -46,30 +46,4 @@ public class HistogramaVentasAutos {
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
     }
-
-    // Función de ejemplo para generar datos aleatorios
-    public static int[] generarDatosEjemplo(int meses) {
-        int[] ventas = new int[meses];
-        Random rand = new Random();
-
-        // Generar datos con distribución aproximadamente normal
-        for (int i = 0; i < meses; i++) {
-            // Media 10, desviación 3
-            double valor = rand.nextGaussian() * 3 + 10;
-            ventas[i] = (int) Math.round(Math.max(0, valor));
-        }
-        return ventas;
-    }
-
-    public static void main(String[] args) {
-        int meses = 1000;
-        int[] ventasPorMes = generarDatosEjemplo(meses);
-        for (int ventas: ventasPorMes) {
-            System.out.println(ventas);
-        }
-
-        /*SwingUtilities.invokeLater(() -> {
-            mostrarHistogramaVentas(meses, ventasPorMes);
-        });*/
-    }
 }

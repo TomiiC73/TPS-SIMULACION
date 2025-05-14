@@ -4,22 +4,12 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
-import javax.swing.table.TableColumnModel;
 import java.awt.*;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.text.NumberFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.*;
 import java.util.List;
-import java.util.Random;
+import java.util.stream.Collectors;
 
-import org.apache.poi.sl.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.CellStyle;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.example.Distribuciones.*;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
@@ -43,16 +33,20 @@ public class SimulacionInventarioAutosGUI {
     private static final Color COLOR_METRICAS_FONDO = new Color(248, 250, 252);
     private static final Color COLOR_BORDE = new Color(241, 238, 241);
 
-    private int[] ventasCoches;
-    private int[] frecuenciaVentas;
-    private double[] probabilidadEntrega;
+
     private double costoAlmacenamiento;
     private double costoVentaPerdida;
     private double costoPedido;
     private int puntoReorden;
     private int cantidadPedido;
+    private int[] ventasCoches;
+    private int[] frecuenciaVentas;
     private String distribucionEntrega;
+    private String tipoCarga;
+    private int[] demoraProveedor;
+    private double[] probabilidadEntrega;
     private double[] parametrosDistribucion;
+
 
     private Random random = new Random();
     private JFrame frame;
@@ -208,11 +202,12 @@ public class SimulacionInventarioAutosGUI {
         panel.add(lblDistribucion);
         panel.add(comboDistribuciones);
 
+
         // Elegir entre carga manual o carga por estadísticos
-        JLabel lblTipoCarga = new JLabel("Distribución para tiempo de entrega:");
+        JLabel lblTipoCarga = new JLabel("Tipo de dato a utilizar en la distribución:");
         lblTipoCarga.setFont(fuenteLabels);
         lblTipoCarga.setForeground(Color.BLACK);
-        String[] tipoCarga = {"Manual", "Estadísticos"};
+        String[] tipoCarga = {"Manual", "Parámetros"};
         JComboBox<String> comboTipoCarga = new JComboBox<>(tipoCarga);
         comboDistribuciones.setFont(fuenteCombobox);
         panel.add(lblTipoCarga);
@@ -239,7 +234,7 @@ public class SimulacionInventarioAutosGUI {
         JLabel lblParametros = new JLabel("Parámetros (separados por comas):");
         lblParametros.setFont(fuenteLabels);
         lblParametros.setForeground(Color.BLACK);
-        JTextField txtParametros = new JTextField("1,4");
+        JTextField txtParametros = new JTextField("A,B");
         txtParametros.setFont(fuenteTextFields);
         panel.add(lblParametros);
         panel.add(txtParametros);
@@ -247,6 +242,23 @@ public class SimulacionInventarioAutosGUI {
         txtDemora.setEnabled(true);
         txtProbEntrega.setEnabled(true);
         txtParametros.setEnabled(false);
+
+        comboDistribuciones.addActionListener(e -> {
+            try {
+                String seleccion = (String) comboDistribuciones.getSelectedItem();
+                if ("Uniforme".equals(seleccion)) {
+                    txtParametros.setText("A,B");
+                } else if("Normal".equals(seleccion)) {
+                    txtParametros.setText("Media,DesviacionEstandar");
+                } else if("Exponencial".equals(seleccion)) {
+                    txtParametros.setText("Lambda=1/Media");
+                } else {
+                    txtParametros.setText("Lambda=Media");
+                }
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+        });
 
         //Para elegir
         comboTipoCarga.addActionListener(e -> {
@@ -274,35 +286,43 @@ public class SimulacionInventarioAutosGUI {
         btnGuardar.setFocusPainted(false);
         btnGuardar.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
 
+        // Guardar las configuraciones en los atributos de la clase SimulacionInventarioAutosGUI
         btnGuardar.addActionListener(e -> {
             try {
-                ventasCoches = parsearEnteros(txtVentas.getText());
-                frecuenciaVentas = parsearEnteros(txtFrecuencias.getText());
-                probabilidadEntrega = parsearDoubles(txtProbEntrega.getText());
                 costoAlmacenamiento = Double.parseDouble(txtCostoAlmacen.getText());
                 costoVentaPerdida = Double.parseDouble(txtCostoVentaPerdida.getText());
                 costoPedido = Double.parseDouble(txtCostoPedido.getText());
                 puntoReorden = Integer.parseInt(txtPuntoReorden.getText());
                 cantidadPedido = Integer.parseInt(txtCantidadPedido.getText());
+                ventasCoches = parsearEnteros(txtVentas.getText());
+                frecuenciaVentas = parsearEnteros(txtFrecuencias.getText());
                 distribucionEntrega = (String) comboDistribuciones.getSelectedItem();
+                this.tipoCarga = (String) comboTipoCarga.getSelectedItem();
+                // Carga Manual o por Estadísticos?
+                if(this.tipoCarga.equals("Manual")){ // Funca con este por ahora
+                    demoraProveedor = parsearEnteros(txtDemora.getText());
+                    probabilidadEntrega = parsearDoubles(txtProbEntrega.getText()); // Demora
 
-                // Obtenemos parámetros del txtParametros y lo parseamos a double
-                String[] parametrosStr = txtParametros.getText().split(",");
-                parametrosDistribucion = new double[parametrosStr.length];
-                for (int i = 0; i < parametrosStr.length; i++) {
-                    parametrosDistribucion[i] = Double.parseDouble(parametrosStr[i].trim());
+                    // validar que la suma sea igual a 1
+                    double sumaProb = 0;
+                    for (double prob : probabilidadEntrega) {
+                        sumaProb += prob;
+                    }
+                    if (Math.abs(sumaProb - 1.0) > 0.001) {
+                        throw new IllegalArgumentException("Las probabilidades de entrega deben sumar 1");
+                    }
+                } else {
+                    parametrosDistribucion = parsearDoubles(txtParametros.getText());
+                    /*// Obtenemos parámetros del txtParametros y lo parseamos a double
+                    String[] parametrosStr = txtParametros.getText().split(",");
+                    parametrosDistribucion = new double[parametrosStr.length];
+                    for (int i = 0; i < parametrosStr.length; i++) {
+                        parametrosDistribucion[i] = Double.parseDouble(parametrosStr[i].trim());
+                    }*/
                 }
 
                 if (ventasCoches.length != frecuenciaVentas.length) {
                     throw new IllegalArgumentException("La cantidad de valores de ventas debe coincidir con las frecuencias");
-                }
-
-                double sumaProb = 0;
-                for (double prob : probabilidadEntrega) {
-                    sumaProb += prob;
-                }
-                if (Math.abs(sumaProb - 1.0) > 0.001) {
-                    throw new IllegalArgumentException("Las probabilidades de entrega deben sumar 1");
                 }
 
                 dialog.dispose();
@@ -456,10 +476,8 @@ public class SimulacionInventarioAutosGUI {
         JScrollPane scrollPane = new JScrollPane(table);
         scrollPane.setBorder(BorderFactory.createLineBorder(COLOR_BORDE));
 
-        // Llenar la tabla con los datos
+        // Definir las filas a mostrar
         List<ResultadoMes> resultadosMostrar = new ArrayList<>();
-
-
         for (int i = inicio - 1; i < fin; i++) {
             if (i == resultados.size() - 1) {
                 break;
@@ -468,6 +486,7 @@ public class SimulacionInventarioAutosGUI {
         }
         resultadosMostrar.add(resultados.getLast());
 
+        // Llenar la tabla con los datos
         for (ResultadoMes resultado : resultadosMostrar) {
             Object[] rowData = {
                     resultado.mes,
@@ -478,7 +497,7 @@ public class SimulacionInventarioAutosGUI {
                     resultado.ventasPerdidas,
                     resultado.pedidoPendiente,
                     resultado.inventarioFinal,
-                    resultado.randomEntrega > 0 ? String.format("%.4f", resultado.randomEntrega) : "-",
+                    resultado.randomEntrega > 0 && !distribucionEntrega.equalsIgnoreCase("POISSON")? String.format("%.4f", resultado.randomEntrega) : "-",
                     resultado.mesesRestantesEntrega > 0 ? resultado.mesesRestantesEntrega : "-",
                     String.format("$%,.2f", resultado.costoAlmacenamiento),
                     String.format("$%,.2f", resultado.costoTotalAlmacenamiento),
@@ -510,6 +529,29 @@ public class SimulacionInventarioAutosGUI {
         splitPane.setResizeWeight(0.7);
         splitPane.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 
+        // Botón para mostrar gráficos de promedio de costos
+        JButton btnMostrarGrafico = new JButton("Gráfico Promedio de Costos");
+        btnMostrarGrafico.setBackground(COLOR_BOTON);
+        btnMostrarGrafico.setForeground(COLOR_TEXTO_BOTON);
+        btnMostrarGrafico.setFont(new Font("Lato", Font.BOLD, 14));
+        btnMostrarGrafico.addActionListener(e -> crearYMostrarGraficosCostosPromedios(resultados));
+
+        // Boton para mostrar histograma de frecuencia de ventas de autos por mes
+        JButton btnMostrarHistograma = new JButton("Gráfico Frecuencia de Ventas");
+        btnMostrarHistograma.setBackground(COLOR_BOTON);
+        btnMostrarHistograma.setForeground(COLOR_TEXTO_BOTON);
+        btnMostrarHistograma.setFont(new Font("Lato", Font.BOLD, 14));
+        btnMostrarHistograma.addActionListener(e -> crearYMostrarHistogramaVentasAutos(resultados));
+
+        // Crear panel para los botones
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        buttonPanel.setBackground(COLOR_FONDO);
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
+        buttonPanel.add(btnMostrarGrafico);
+        buttonPanel.add(btnMostrarHistograma);
+
+        // Añadir todos los componentes al frame
+        resultadosFrame.add(buttonPanel, BorderLayout.SOUTH);
         resultadosFrame.add(splitPane, BorderLayout.CENTER);
         resultadosFrame.setLocationRelativeTo(frame);
         resultadosFrame.setVisible(true);
@@ -529,6 +571,10 @@ public class SimulacionInventarioAutosGUI {
         metricsBuilder.append("\n");
 
         // 2. Análisis de pedidos
+/*        HashMap<Integer,Integer> demoraYFrecuencia = resultados.stream()
+                .collect(Collectors.groupingBy(
+                        ResultadoMes
+                ))*/
         long totalPedidos = resultados.stream().filter(r -> r.costoPedido > 0).count();
         metricsBuilder.append("■ ANÁLISIS DE PEDIDOS\n");
         metricsBuilder.append(String.format("  - Total de pedidos realizados: %,d\n", totalPedidos));
@@ -571,11 +617,11 @@ public class SimulacionInventarioAutosGUI {
 
         // 5. Análisis de inventario
         int maxInventario = resultados.stream().mapToInt(r -> r.inventarioInicial).max().orElse(0);
-        int minInventario = resultados.stream().mapToInt(r -> r.inventarioFinal).min().orElse(0);
+        int minInventario = resultados.stream().mapToInt(r -> r.inventarioFinal).filter(a -> a > 0).min().getAsInt();
 
         metricsBuilder.append("■ ANÁLISIS DE INVENTARIO\n");
         metricsBuilder.append(String.format("  - Máximo inventario: %,d autos\n", maxInventario));
-        metricsBuilder.append(String.format("  - Mínimo inventario: %,d autos\n", minInventario));
+        metricsBuilder.append(String.format("  - Mínimo inventario excluyendo 0: %,d autos\n", minInventario));
         metricsBuilder.append("\n");
 
         // Métricas de efectividad del punto de reorden
@@ -593,10 +639,10 @@ public class SimulacionInventarioAutosGUI {
         metricsArea.setText(metricsBuilder.toString());
 
         // Crear y mostrar gráficos comparativos
-        crearYMostrarGraficos(resultados);
+        //crearYMostrarGraficos(resultados);
     }
 
-    private void crearYMostrarGraficos(List<ResultadoMes> resultados) {
+    private void crearYMostrarGraficosCostosPromedios(List<ResultadoMes> resultados) {
         // Crear un nuevo panel para los gráficos
         JPanel chartsPanel = new JPanel(new GridLayout(1, 2));
         chartsPanel.setBackground(COLOR_METRICAS_FONDO);
@@ -607,7 +653,7 @@ public class SimulacionInventarioAutosGUI {
 
         // Crear un nuevo panel principal
         JPanel mainPanel = new JPanel(new BorderLayout());
-        mainPanel.add(new JScrollPane(metricsArea), BorderLayout.CENTER);
+        //mainPanel.add(new JScrollPane(metricsArea), BorderLayout.CENTER);
         mainPanel.add(chartsPanel, BorderLayout.SOUTH);
 
         // Mostrar en un nuevo diálogo
@@ -617,16 +663,17 @@ public class SimulacionInventarioAutosGUI {
         chartDialog.pack();
         chartDialog.setLocationRelativeTo(frame);
         chartDialog.setVisible(true);
+    }
 
+    private void crearYMostrarHistogramaVentasAutos(List<ResultadoMes> resultados) {
         // Mostrar histograma de ventas por meses
-        HistogramaVentasAutos hva = new HistogramaVentasAutos();
         List<Integer> listaVentas = new ArrayList<>();
 
         for (ResultadoMes resultado : resultados) {
             listaVentas.add(resultado.ventas);
         }
 
-        hva.mostrarHistogramaVentas(listaVentas.size(), listaVentas);
+        HistogramaVentasAutos.mostrarHistogramaVentas(listaVentas.size(), listaVentas);
     }
 
     private JFreeChart createCostComparisonChart(List<ResultadoMes> resultados) {
@@ -764,9 +811,48 @@ public class SimulacionInventarioAutosGUI {
             this.randomEntrega = randomEntrega;
             this.costoTotalPromedio = costoTotalPromedio;
         }
+
+        //public int getPedidoPendiente
     }
 
     public class GeneradorDistribuciones {
+        // Calcular parametros en caso de carga manual de datos
+        public static double[] calcularParametros(double[] probabilidadesDemora, int[] demoraProveedor, String tipoDistribucion) {
+            double[] parametros = {0,0};
+            double media = 0;
+            for(int i = 0; i < probabilidadesDemora.length - 1 ; i++){
+                media += probabilidadesDemora[i] * demoraProveedor[i];
+            }
+            double desviacionEstandar = 0;
+
+                switch (tipoDistribucion.toUpperCase()){
+                    case "UNIFORME":
+                        int A = Arrays.stream(demoraProveedor).min().getAsInt();
+                        int B = Arrays.stream(demoraProveedor).max().getAsInt();
+                        parametros[0] = A;
+                        parametros[1] = B;
+                        return parametros;
+                    case "NORMAL":
+                        double varianza = 0;
+                        for(int i = 0; i < probabilidadesDemora.length - 1 ; i++){
+                            varianza += probabilidadesDemora[i] * Math.pow(demoraProveedor[i] - media,2);
+                        }
+                        desviacionEstandar = Math.sqrt(varianza);
+                        parametros[0] = media;
+                        parametros[1] = desviacionEstandar;
+                        return parametros;
+                    case "EXPONENCIAL":
+                        double lambda = 1 / media;
+                        parametros[0] = lambda;
+                        return parametros;
+                    default:
+                        parametros[0] = media;
+                        return parametros;
+                }
+            //}
+
+        }
+
         public static int generarTiempoEntrega(String tipoDistribucion, double RND, double[] parametros) {
             switch (tipoDistribucion.toUpperCase()) {
                 case "UNIFORME":
@@ -783,15 +869,15 @@ public class SimulacionInventarioAutosGUI {
                     return (int) Math.max(1, Math.min(4, Math.ceil(normal[0])));
 
                 case "POISSON":
-                    if (parametros.length != 1)
-                        throw new IllegalArgumentException("Poisson necesita 1 parámetro [lambda]");
+                    /*if (parametros.length != 1)
+                        throw new IllegalArgumentException("Poisson necesita 1 parámetro [lambda]");*/
                     double[] poisson = Poisson.generate(parametros[0], 1);
                     return (int) Math.max(1, Math.min(4, Math.ceil(poisson[0])));
 
                 case "EXPONENCIAL":
-                    if (parametros.length != 1)
-                        throw new IllegalArgumentException("Exponencial necesita 1 parámetro [lambda]");
-                    double[] exponencial = Exponential.generate(parametros[0], 1);
+                    /*if (parametros.length != 1)
+                        throw new IllegalArgumentException("Exponencial necesita 1 parámetro [lambda]");*/
+                    double[] exponencial = Exponential.generate(parametros[0], 1, RND);
                     return (int) Math.max(1, Math.min(4, Math.ceil(exponencial[0])));
 
                 default:
@@ -809,8 +895,14 @@ public class SimulacionInventarioAutosGUI {
         double costoTotalAlmacenamiento = 0;
         double costoTotalVentaPerdida = 0;
         double costoTotalPedido = 0;
-        //double costoTotalAcumulado = 0;
         double costoTotalPromedio = 0;
+
+        if(tipoCarga.equals("Manual")){
+            System.out.println(parametrosDistribucion);
+            parametrosDistribucion = GeneradorDistribuciones.calcularParametros(probabilidadEntrega, demoraProveedor, distribucionEntrega);
+            System.out.println(parametrosDistribucion[0]);
+            System.out.println(parametrosDistribucion[1]);
+        }
 
         for (int mes = 1; mes <= mesesSimular; mes++) {
             int inventarioInicial = inventario;
@@ -843,10 +935,14 @@ public class SimulacionInventarioAutosGUI {
             double randomEntrega = 0;
 
             // Hacer nuevo pedido si es necesario
+            // ACA TENEMOS QUE ATACAR CON LAS DISTRIBUCIONES
             boolean hacerPedido = (inventario <= this.puntoReorden) && (pedidoPendiente == 0);
             if (hacerPedido) {
                 costoPed = this.costoPedido;
                 pedidoPendiente = this.cantidadPedido;
+
+
+
                 randomEntrega = random.nextDouble();
                 mesesRestantesEntrega = GeneradorDistribuciones.generarTiempoEntrega(
                         distribucionEntrega,
@@ -889,6 +985,7 @@ public class SimulacionInventarioAutosGUI {
         mostrarResultadosGUI(resultados, filaInicioMostrar, filaFinMostrar);
     }
 
+    // Generar nro de ventas en base a frecuencia de ventas
     private int generarVentas(double randomValue) {
         double acumulado = 0.0;
         double totalFrecuencia = Arrays.stream(frecuenciaVentas).sum();
