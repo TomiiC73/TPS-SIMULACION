@@ -97,7 +97,10 @@ public class SimulacionInventarioAutosGUI {
         btnSimular.setFont(new Font("Lato", Font.BOLD, 14));
         btnSimular.setFocusPainted(false);
         btnSimular.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
-        btnSimular.addActionListener(e -> validarYEJecutarSimulacion());
+        btnSimular.addActionListener(e -> {
+            frecuenciaDeDemorasProveedor = new HashMap<>();
+            validarYEJecutarSimulacion();
+        });
 
         JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 10, 0));
         buttonPanel.setBackground(COLOR_FONDO);
@@ -698,6 +701,7 @@ public class SimulacionInventarioAutosGUI {
     }
 
     private void crearYMostrarHistogramaDemoraProveedor(List<ResultadoMes> resultados) {
+
         HistogramaFrecuenciaDemoras.mostrarHistogramaDemoras(frecuenciaDeDemorasProveedor);
     }
 
@@ -1029,6 +1033,7 @@ public class SimulacionInventarioAutosGUI {
         }
 
         mostrarResultadosGUI(resultados, filaInicioMostrar, filaFinMostrar);
+
     }
 
     // Generar nro de ventas en base a frecuencia de ventas
