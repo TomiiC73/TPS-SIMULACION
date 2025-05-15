@@ -8,10 +8,9 @@ import java.awt.*;
 import java.text.NumberFormat;
 import java.util.*;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.example.Distribuciones.*;
-import org.example.GUI.HistogramaFrecuenciaDemoras;
+import org.example.GUI.*;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
@@ -486,7 +485,7 @@ public class SimulacionInventarioAutosGUI {
 
         // Configurar anchos de columnas
         table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-        int[] columnWidths = {50, 115, 110, 60, 60, 70, 60, 120, 100, 60, 135, 140, 120, 130, 130, 130, 120, 120, 120};
+        int[] columnWidths = {50, 115, 105, 60, 135, 75, 60, 120, 100, 60, 135, 140, 120, 130, 130, 130, 120, 120, 145};
         for (int i = 0; i < columnWidths.length; i++) {
             table.getColumnModel().getColumn(i).setPreferredWidth(columnWidths[i]);
         }
@@ -650,12 +649,10 @@ public class SimulacionInventarioAutosGUI {
         int mesesBajoReorden = (int) resultados.stream()
                 .filter(r -> r.inventarioFinal <= puntoReorden)
                 .count();
-        double efectividadReorden = (double) mesesBajoReorden / resultados.size() * 100;
 
         metricsBuilder.append("■ EFECTIVIDAD DEL PUNTO DE REORDEN\n");
         metricsBuilder.append(String.format("  - Veces que cayó bajo punto de reorden: %,d/%,d meses\n",
                 mesesBajoReorden, resultados.size()));
-        metricsBuilder.append(String.format("  - Porcentaje de efectividad: %.1f%%\n", efectividadReorden));
 
         // Configurar el área de texto
         metricsArea.setText(metricsBuilder.toString());
