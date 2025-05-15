@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.example.Distribuciones.*;
+import org.example.GUI.HistogramaFrecuenciaDemoras;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
@@ -48,6 +49,7 @@ public class SimulacionInventarioAutosGUI {
     private double[] parametrosDistribucion;
     private double[] rndsParaNormal = {-1,-1};
     private double[] rndsConDistribucionNormal = {-1,-1};
+    HashMap<Integer, Integer> frecuenciaDeDemorasProveedor = new HashMap<>();
 
 
     private Random random = new Random();
@@ -211,7 +213,7 @@ public class SimulacionInventarioAutosGUI {
         lblTipoCarga.setForeground(Color.BLACK);
         String[] tipoCarga = {"Manual", "Parámetros"};
         JComboBox<String> comboTipoCarga = new JComboBox<>(tipoCarga);
-        comboDistribuciones.setFont(fuenteCombobox);
+        comboTipoCarga.setFont(fuenteCombobox);
         panel.add(lblTipoCarga);
         panel.add(comboTipoCarga);
 
@@ -220,7 +222,7 @@ public class SimulacionInventarioAutosGUI {
         lblDemora.setFont(fuenteLabels);
         lblDemora.setForeground(Color.BLACK);
         JTextField txtDemora = new JTextField("1,2,3,4");
-        lblDemora.setFont(fuenteTextFields);
+        txtDemora.setFont(fuenteTextFields);
         panel.add(lblDemora);
         panel.add(txtDemora);
 
@@ -300,7 +302,20 @@ public class SimulacionInventarioAutosGUI {
                 frecuenciaVentas = parsearEnteros(txtFrecuencias.getText());
                 distribucionEntrega = (String) comboDistribuciones.getSelectedItem();
                 this.tipoCarga = (String) comboTipoCarga.getSelectedItem();
-                // Carga Manual o por Estadísticos?
+
+                if (costoAlmacenamiento <= 0 || costoVentaPerdida <= 0 || costoPedido <= 0) {
+                    throw new IllegalArgumentException("Los costos deben ser mayores a 0");
+                }
+
+                if (cantidadPedido <= 0) {
+                    throw new IllegalArgumentException("La cantidad de pedido debe ser mayor a 0");
+                }
+
+                if (puntoReorden <= 0) {
+                    throw new IllegalArgumentException("El punto de reorden debe ser mayor a 0");
+                }
+
+                // Carga Manual o por Parámetros?
                 if(this.tipoCarga.equals("Manual")){ // Funca con este por ahora
                     demoraProveedor = parsearEnteros(txtDemora.getText());
                     probabilidadEntrega = parsearDoubles(txtProbEntrega.getText()); // Demora
@@ -313,14 +328,12 @@ public class SimulacionInventarioAutosGUI {
                     if (Math.abs(sumaProb - 1.0) > 0.001) {
                         throw new IllegalArgumentException("Las probabilidades de entrega deben sumar 1");
                     }
+
+                    if (demoraProveedor.length != probabilidadEntrega.length) {
+                        throw new IllegalArgumentException("La cantidad de valores de ventas debe coincidir con las frecuencias");
+                    }
                 } else {
                     parametrosDistribucion = parsearDoubles(txtParametros.getText());
-                    /*// Obtenemos parámetros del txtParametros y lo parseamos a double
-                    String[] parametrosStr = txtParametros.getText().split(",");
-                    parametrosDistribucion = new double[parametrosStr.length];
-                    for (int i = 0; i < parametrosStr.length; i++) {
-                        parametrosDistribucion[i] = Double.parseDouble(parametrosStr[i].trim());
-                    }*/
                 }
 
                 if (ventasCoches.length != frecuenciaVentas.length) {
@@ -545,12 +558,20 @@ public class SimulacionInventarioAutosGUI {
         btnMostrarHistograma.setFont(new Font("Lato", Font.BOLD, 14));
         btnMostrarHistograma.addActionListener(e -> crearYMostrarHistogramaVentasAutos(resultados));
 
+        // Boton para mostrar histograma de frecuencia de demoras del proveedor
+        JButton btnMostrarHistogramaDemoras = new JButton("Gráfico Demoras de Proveedor");
+        btnMostrarHistogramaDemoras.setBackground(COLOR_BOTON);
+        btnMostrarHistogramaDemoras.setForeground(COLOR_TEXTO_BOTON);
+        btnMostrarHistogramaDemoras.setFont(new Font("Lato", Font.BOLD, 14));
+        btnMostrarHistogramaDemoras.addActionListener(e -> crearYMostrarHistogramaDemoraProveedor(resultados));
+
         // Crear panel para los botones
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         buttonPanel.setBackground(COLOR_FONDO);
         buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
         buttonPanel.add(btnMostrarGrafico);
         buttonPanel.add(btnMostrarHistograma);
+        buttonPanel.add(btnMostrarHistogramaDemoras);
 
         // Añadir todos los componentes al frame
         resultadosFrame.add(buttonPanel, BorderLayout.SOUTH);
@@ -573,10 +594,6 @@ public class SimulacionInventarioAutosGUI {
         metricsBuilder.append("\n");
 
         // 2. Análisis de pedidos
-/*        HashMap<Integer,Integer> demoraYFrecuencia = resultados.stream()
-                .collect(Collectors.groupingBy(
-                        ResultadoMes
-                ))*/
         long totalPedidos = resultados.stream().filter(r -> r.costoPedido > 0).count();
         metricsBuilder.append("■ ANÁLISIS DE PEDIDOS\n");
         metricsBuilder.append(String.format("  - Total de pedidos realizados: %,d\n", totalPedidos));
@@ -640,8 +657,6 @@ public class SimulacionInventarioAutosGUI {
         // Configurar el área de texto
         metricsArea.setText(metricsBuilder.toString());
 
-        // Crear y mostrar gráficos comparativos
-        //crearYMostrarGraficos(resultados);
         rndsConDistribucionNormal[0] = -1;
         rndsConDistribucionNormal[1] = -1;
         rndsParaNormal[0] = -1;
@@ -680,6 +695,10 @@ public class SimulacionInventarioAutosGUI {
         }
 
         HistogramaVentasAutos.mostrarHistogramaVentas(listaVentas.size(), listaVentas);
+    }
+
+    private void crearYMostrarHistogramaDemoraProveedor(List<ResultadoMes> resultados) {
+        HistogramaFrecuenciaDemoras.mostrarHistogramaDemoras(frecuenciaDeDemorasProveedor);
     }
 
     private JFreeChart createCostComparisonChart(List<ResultadoMes> resultados) {
@@ -865,11 +884,10 @@ public class SimulacionInventarioAutosGUI {
                 return comodin;
 
             case "NORMAL":
-                System.out.println("Holaaaaa");
                 if (parametros.length != 2)
                     throw new IllegalArgumentException("Normal necesita 2 parámetros [media, desviación]");
                 if(rndsConDistribucionNormal[0] == -1 && rndsConDistribucionNormal[1] == -1){
-                    System.out.println("Hola");
+                    System.out.println("----------");
                     rndsConDistribucionNormal = Normal.generate(parametros[0], parametros[1], 2, rndsParaNormal[0], rndsParaNormal[1]);
                 }
                 System.out.println(rndsParaNormal[0] + " " + rndsParaNormal[1] + " - " + rndsConDistribucionNormal[0] + " " + rndsConDistribucionNormal[1]);
@@ -976,6 +994,7 @@ public class SimulacionInventarioAutosGUI {
                         randomEntrega,
                         parametrosDistribucion
                 );
+                frecuenciaDeDemorasProveedor.put(mesesRestantesEntrega, frecuenciaDeDemorasProveedor.getOrDefault(mesesRestantesEntrega, 0) + 1);
             }
 
             double costoMes = costoAlmacen + costoVentasPerd + costoPed;

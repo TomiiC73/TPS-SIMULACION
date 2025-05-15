@@ -35,7 +35,6 @@ public class Normal {
 
         // Si n es impar, genera un ultimo valor usando solo z0 (el valor restante)
         if (n % 2 != 0) {
-
             // Calcula z0 para obtener el ultimo valor de la distribucion normal
             double z0 = Math.sqrt(-2.0 * Math.log(1 - RND1)) * Math.cos(2 * Math.PI * RND2);
             valores[n - 1] = z0 * desviacion + media;  // Ajusta z0 a la media y desviacion estándar
